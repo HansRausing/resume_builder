@@ -60,15 +60,15 @@ app.post('/api/tailor-resume', async (req, res) => {
     Tailor my resume to this specific job to maximize recruiter callbacks and ATS optimization, using a MINIMAL-CHANGE, MAXIMUM-IMPACT surgical approach.
 
 CRITICAL RULES (STRICT):
-1. **TRUTH PRESERVATION**: NEVER invent, exaggerate, or fabricate any experience, metrics, or qualifications.
-2. **PRESERVE METRICS**: Keep all quantitative achievements (%, $, numbers, KPIs) exactly as written.
-3. **CHRONOLOGY INTACT**: Do not change employment dates, job titles, or company names.
-4. **ONE-PAGE CONSTRAINT**: Ensure final resume fits on one page with proper formatting.
-5. **NO FLUFF**: Remove any generic statements like "team player," "hard worker," "excellent communicator."
-6. **NO PARENTHESES**: Never add keywords in parentheses (like this). Integrate naturally into sentences.
+1. **PRESERVE METRICS**: Keep all quantitative achievements (%, $, numbers, KPIs) exactly as written.
+2. **CHRONOLOGY INTACT**: Do not change employment dates, job titles, or company names.
+3. **ONE-PAGE CONSTRAINT**: Ensure final resume fits on two pages with proper formatting.
+4. **NO FLUFF**: Remove any generic statements like "team player," "hard worker," "excellent communicator."
+5. **NO PARENTHESES**: Never add keywords in parentheses (like this). Integrate naturally into sentences.
+6.**EXPERIENCES**: Implement the required experience in the job description.
 
 ALLOWED CHANGES (ONLY):
-A) UUpdate the "Title" or "Summary" line to exactly match the job title.
+A) Update the "Title" or "Summary" line to exactly match the job title.
 B) Update the SUMMARY only if necessary to mirror the role's core focus (max 3 lines).
   - Keep 3 lines maximum
   - Start with strongest value proposition
@@ -80,6 +80,7 @@ C) KEYWORD INTEGRATION
    - Categorize them: Technologies (30%), Business Domains (30%), Soft Skills (20%), Methodologies (20%)
    - Insert keywords NATURALLY into existing bullet points WITHOUT rewriting
    - And Mention business or industry experience similar to the job description.
+   - Bold the keywords such as the skills and stacks that are required in job description
 D) WORK EXPERIENCE
    - Keep over 7 bullets in the content per experience
    - And mention business or industry experience similar to the job description.
@@ -92,7 +93,6 @@ Add 5-8 missing, HIGH-VALUE keywords from the job description into:
 F) SKILLS SECTION RESTRUCTURING:
    - Group skills by category matching job description format
    - Order by relevance to this specific role
-   - Add missing REQUIRED technologies from job description (only if truthful)
 H) IMPACT
    - Remain the 4 bullets
    - Also remain the subtitles and contents, but change them to match the job description if needed.
@@ -121,7 +121,6 @@ EXECUTION INSTRUCTIONS:
    - Using them as adjectives or part of phrases
    - Connecting them naturally to existing content
 4. Reorder sections/bullets to highlight most relevant experience first
-5. Bold all changes for visibility
 
 BUSINESS/INDUSTRY ALIGNMENT:
 - If your experience includes similar industries/domains, mention this naturally
@@ -142,13 +141,12 @@ ${jobDescription}
 
 OUTPUT FORMAT:
 - Return the FULL updated resume text.
-- Should look like human-written, especially, no need "—" symbols in the text and verbal tone.
-- Please ensure that words are not repeated, there are no spelling errors, and all grammar is correct.
-- Highlight all changes with BOLD of font style for easy review.
 - NO explanations or commentary
 - NO keywords in parentheses
 - Maintain professional flow and readability
-- give how to name resume file name as "YourName_JobTitle-CompanyName.pdf"`;
+- Should look like human-written, especially, no need "—" symbols in the text and verbal tone.
+- Please ensure that words are not repeated, there are no spelling errors, and all grammar is correct.
+- give how to name resume file name as "FirstName LastName_JobTitle - CompanyName.pdf"`;
 
     const maxAttempts = 3;
     let tailoredResume = '';
