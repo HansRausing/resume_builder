@@ -58,7 +58,7 @@ export function tailoredResumeJsonToFlowCvImpactSaveBodies(tailoredResumeJson) {
       sectionId: 'custom1',
       entry: {
         id: meta.id,
-        title: String(title || '').trim(),
+        title: String(title || '').replaceAll("**", "").trim(),
         ...IMPACT_SHELL,
         createdAt: meta.createdAt,
         updatedAt: flowCvNowIso(),
