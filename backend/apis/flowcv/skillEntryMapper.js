@@ -69,12 +69,14 @@ function coerceTechArray(rawVal) {
     return rawVal
       .map(String)
       .map((s) => s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"))
+      .map((s) => s.replace(/\*\*(.+?)/g, "<strong>$1</strong>"))
       .filter(Boolean);
   }
   if (typeof rawVal === "string") {
     return rawVal
       .split(",")
       .map((s) => s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"))
+      .map((s) => s.replace(/\*\*(.+?)/g, "<strong>$1</strong>"))
       .filter(Boolean);
   }
   return [];
