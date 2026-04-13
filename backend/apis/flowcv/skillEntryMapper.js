@@ -64,19 +64,25 @@ export const FLOWCV_SKILL_ENTRY_CONFIGS = [
  * @returns {(typeof FLOWCV_SKILL_ENTRY_CONFIGS)[number] | null}
  */
 
+function replaceBoldMarkers(s) {
+  const text = String(s || "");
+  if (text === "**") return "<strong>**</strong>";
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/^\*\*(.+)$/, "<strong>$1</strong>")
+    .replace(/^(.+?)\*\*$/, "<strong>$1</strong>");
+}
+
 function coerceTechArray(rawVal) {
   if (Array.isArray(rawVal)) {
     return rawVal
-      .map(String)
-      .map((s) => s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"))
-      .map((s) => s.replace(/\*\*(.+?)/g, "<strong>$1</strong>"))
+      .map(replaceBoldMarkers)
       .filter(Boolean);
   }
   if (typeof rawVal === "string") {
     return rawVal
       .split(",")
-      .map((s) => s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"))
-      .map((s) => s.replace(/\*\*(.+?)/g, "<strong>$1</strong>"))
+      .map(replaceBoldMarkers)
       .filter(Boolean);
   }
   return [];
