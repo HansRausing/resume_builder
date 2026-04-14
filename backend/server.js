@@ -148,7 +148,7 @@ OUTPUT FORMAT:
 - Maintain professional flow and readability
 - Should look like human-written, especially, no need "—" symbols in the text and verbal tone.
 - Please ensure that words are not repeated, there are no spelling errors, and all grammar is correct.
-- give how to name resume file name as "FirstName LastName_JobTitle - CompanyName.pdf"`;
+- Generate a professional file name for a resume. Use spaces between words in the name, not camel case or underscores, except where needed for clarity. The format should be: [First Name Last Name]_[Job Title]-[Company Name]`;
 
     const maxAttempts = 3;
     let tailoredResume = '';
