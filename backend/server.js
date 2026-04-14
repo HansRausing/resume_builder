@@ -271,7 +271,7 @@ app.get("/api/flowcv/download-pdf", async (req, res) => {
     });
 
     const filename =
-      String(req.query.filename || "flowcv-resume.pdf").trim() ||
+      String(req.query.filename || "flowcv-resume.pdf") ||
       "flowcv-resume.pdf";
     res.setHeader("Content-Type", pdf.contentType || "application/pdf");
     res.setHeader(

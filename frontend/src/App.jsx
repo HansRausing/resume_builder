@@ -29,13 +29,12 @@ function App() {
   };
 
   const sanitizeDownloadName = (name, fallback) => {
-    let s = String(name || "").trim();
+    let s = String(name || "");
     if (!s) s = String(fallback || "flowcv-resume.pdf");
     // Windows-illegal chars + control chars
     s = s
       .replace(/[\\/:*?"<>|\x00-\x1F]/g, "_")
       .replace(/\s+/g, " ")
-      .trim();
     if (!s.toLowerCase().endsWith(".pdf")) s += ".pdf";
     return s;
   };
