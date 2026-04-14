@@ -86,13 +86,15 @@ D) WORK EXPERIENCE
    - And mention business or industry experience similar to the job description.
    - Focus on generate the experiences matched to requirements mentiond in the job description
 E) BULLET POINT OPTIMIZATION
-Add 5-8 missing, HIGH-VALUE keywords from the job description into:
+  - Add 5-8 missing, HIGH-VALUE keywords from the job description into:
    - Reorder bullets to place MOST RELEVANT experience first (don't change content, just add keywords relevant to experience, skills and features they want from job description)
    - Add parenthetical keyword insertion where natural
    - And Mention business or industry experience similar to the job description.
 F) SKILLS SECTION RESTRUCTURING:
    - Group skills by category matching job description format
    - Order by relevance to this specific role
+   - Add any missing critical skills from job description that are not already in the resume
+   - Match the skills over 95% to the job description's "Requirements" and "Preferred Qualifications" sections
 H) IMPACT
    - Remain the 4 bullets
    - Also remain the subtitles and contents, but change them to match the job description if needed.
@@ -162,7 +164,7 @@ OUTPUT FORMAT:
       const response = await axios.post(
         OPENAI_API_URL,
         {
-          model: 'gpt-5.2',
+          model: 'gpt-5-mini',
           messages: [
             {
               role: 'user',
