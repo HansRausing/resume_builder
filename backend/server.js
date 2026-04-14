@@ -1,13 +1,17 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import axios from 'axios';
-import { parseTailoredResumeTextToJson } from './resumeTextToJson.js';
-import { syncFlowCvPersonalDetailsAfterTailor } from './apis/flowcv/syncPersonalDetails.js';
-import { ensureFlowCvSession, getFlowCvCookie, initializeFlowCvSession } from './apis/flowcv/session.js';
-import { with401Retry } from './apis/flowcv/flowCvWith401Retry.js';
-import { downloadFlowCvResumePdf } from './apis/flowcv/downloadResumePdf.js';
-import { FLOWCV_RESUME_ID } from './apis/flowcv/flowcvCredentials.js';
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import axios from "axios";
+import { parseTailoredResumeTextToJson } from "./resumeTextToJson.js";
+import { syncFlowCvPersonalDetailsAfterTailor } from "./apis/flowcv/syncPersonalDetails.js";
+import {
+  ensureFlowCvSession,
+  getFlowCvCookie,
+  initializeFlowCvSession,
+} from "./apis/flowcv/session.js";
+import { with401Retry } from "./apis/flowcv/flowCvWith401Retry.js";
+import { downloadFlowCvResumePdf } from "./apis/flowcv/downloadResumePdf.js";
+import { FLOWCV_RESUME_ID } from "./apis/flowcv/flowcvCredentials.js";
 
 dotenv.config();
 
@@ -15,44 +19,52 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: "50mb" }));
 
 // OpenAI API endpoint
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 
-const isBlank = (v) => !String(v ?? '').trim();
+const isBlank = (v) => !String(v ?? "").trim();
 const hasNonEmptyStringArray = (arr) =>
   Array.isArray(arr) && arr.some((x) => !isBlank(x));
 const hasNonEmptyObject = (obj) =>
-  obj && typeof obj === 'object' && !Array.isArray(obj) && Object.keys(obj).length > 0;
+  obj &&
+  typeof obj === "object" &&
+  !Array.isArray(obj) &&
+  Object.keys(obj).length > 0;
 
 const validateTailoredResumeJson = (json) => {
-  const j = json && typeof json === 'object' ? json : {};
+  const j = json && typeof json === "object" ? json : {};
 
-  if (isBlank(j.fullName)) return { ok: false, missing: 'fullName' };
-  if (isBlank(j.title)) return { ok: false, missing: 'title' };
-  if (isBlank(j.summary)) return { ok: false, missing: 'summary' };
-  if (!hasNonEmptyObject(j.impact)) return { ok: false, missing: 'impact' };
-  if (!hasNonEmptyObject(j.coreTechnologies)) return { ok: false, missing: 'coreTechnologies' };
-  if (!hasNonEmptyStringArray(j.workExperienceBulletsOnly)) return { ok: false, missing: 'workExperienceBulletsOnly' };
-  if (isBlank(j.resumeFileName)) return { ok: false, missing: 'resumeFileName' };
+  if (isBlank(j.fullName)) return { ok: false, missing: "fullName" };
+  if (isBlank(j.title)) return { ok: false, missing: "title" };
+  if (isBlank(j.summary)) return { ok: false, missing: "summary" };
+  if (!hasNonEmptyObject(j.impact)) return { ok: false, missing: "impact" };
+  if (!hasNonEmptyObject(j.coreTechnologies))
+    return { ok: false, missing: "coreTechnologies" };
+  if (!hasNonEmptyStringArray(j.workExperienceBulletsOnly))
+    return { ok: false, missing: "workExperienceBulletsOnly" };
+  if (isBlank(j.resumeFileName))
+    return { ok: false, missing: "resumeFileName" };
 
   return { ok: true, missing: null };
 };
 
 // Generate tailored resume using OpenAI API
-app.post('/api/tailor-resume', async (req, res) => {
+app.post("/api/tailor-resume", async (req, res) => {
   try {
     const { currentResume, jobDescription, apiKey } = req.body;
 
     if (!currentResume || !jobDescription) {
-      return res.status(400).json({ error: 'Current resume and job description are required' });
+      return res
+        .status(400)
+        .json({ error: "Current resume and job description are required" });
     }
 
     const openaiApiKey = apiKey || process.env.OPENAI_API_KEY;
 
     if (!openaiApiKey) {
-      return res.status(400).json({ error: 'OpenAI API key is required' });
+      return res.status(400).json({ error: "OpenAI API key is required" });
     }
 
     const prompt = `ROLE: You are an Expert Resume Strategist and ATS Optimization Specialist with 15+ years experience at Fortune 500 companies. Your specialty is making minimal, surgical changes that dramatically increase callback rates.
@@ -84,6 +96,7 @@ C) KEYWORD INTEGRATION
 D) WORK EXPERIENCE
    - Keep over 7 bullets in the content per experience
    - And mention business or industry experience similar to the job description.
+   - Implement the experiences about the skills and stacks that are mentioned in the job description
    - Focus on generate the experiences matched to requirements mentiond in the job description
 E) BULLET POINT OPTIMIZATION
   - Add 5-8 missing, HIGH-VALUE keywords from the job description into:
@@ -94,7 +107,7 @@ F) SKILLS SECTION RESTRUCTURING:
    - Group skills by category matching job description format
    - Order by relevance to this specific role
    - Add any missing critical skills from job description that are not already in the resume
-   - Match the skills over 95% to the job description's "Requirements" and "Preferred Qualifications" sections
+   - Add all skills 100% to the skills and stacks that are mentioned in the job description
 H) IMPACT
    - Remain the 4 bullets
    - Also remain the subtitles and contents, but change them to match the job description if needed.
@@ -148,26 +161,26 @@ OUTPUT FORMAT:
 - Maintain professional flow and readability
 - Should look like human-written, especially, no need "—" symbols in the text and verbal tone.
 - Please ensure that words are not repeated, there are no spelling errors, and all grammar is correct.
-- Generate a professional file name for a resume. Use spaces between words in the name, not camel case or underscores, except where needed for clarity. The format should be: [First Name Last Name]_[Job Title]-[Company Name]`;
+- Give a professional file name for a resume. Use spaces between words in the name, not camel case or underscores. The format should be: [First Name Last Name]_[Job Title]-[Company Name]. For example: "John Doe_Software Engineer-Acme Corp.pdf".`;
 
     const maxAttempts = 3;
-    let tailoredResume = '';
+    let tailoredResume = "";
     let tailoredResumeJson = null;
     let lastMissing = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const extra =
         attempt === 1
-          ? ''
+          ? ""
           : `\n\nIMPORTANT: Your previous output was missing "${lastMissing}". Regenerate the FULL resume text and ensure ALL sections exist and are non-empty: SUMMARY, IMPACT (4 lines with key: value), CORE TECHNOLOGIES (with categories), WORK EXPERIENCE (bulleted), EDUCATION, and a final line "Resume file name: <filename>.pdf".`;
 
       const response = await axios.post(
         OPENAI_API_URL,
         {
-          model: 'gpt-5-mini',
+          model: "gpt-5-mini",
           messages: [
             {
-              role: 'user',
+              role: "user",
               content: prompt + extra,
             },
           ],
@@ -176,13 +189,13 @@ OUTPUT FORMAT:
         },
         {
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
             Authorization: `Bearer ${openaiApiKey}`,
           },
-        }
+        },
       );
 
-      tailoredResume = response.data.choices?.[0]?.message?.content || '';
+      tailoredResume = response.data.choices?.[0]?.message?.content || "";
       tailoredResumeJson = parseTailoredResumeTextToJson(tailoredResume);
 
       const v = validateTailoredResumeJson(tailoredResumeJson);
@@ -190,7 +203,7 @@ OUTPUT FORMAT:
       lastMissing = v.missing;
       if (attempt === maxAttempts) {
         return res.status(500).json({
-          error: 'Failed to generate a complete tailored resume JSON',
+          error: "Failed to generate a complete tailored resume JSON",
           details: `Missing or empty field after ${maxAttempts} attempts: ${v.missing}`,
           tailoredResume,
           tailoredResumeJson,
@@ -198,24 +211,28 @@ OUTPUT FORMAT:
       }
     }
 
-    const flowCvSync = await syncFlowCvPersonalDetailsAfterTailor(tailoredResumeJson);
+    const flowCvSync =
+      await syncFlowCvPersonalDetailsAfterTailor(tailoredResumeJson);
 
     res.json({ tailoredResume, tailoredResumeJson, flowCvSync });
   } catch (error) {
-    console.error('Error calling OpenAI API:', error.response?.data || error.message);
-    res.status(500).json({ 
-      error: 'Failed to generate tailored resume',
-      details: error.response?.data?.error?.message || error.message
+    console.error(
+      "Error calling OpenAI API:",
+      error.response?.data || error.message,
+    );
+    res.status(500).json({
+      error: "Failed to generate tailored resume",
+      details: error.response?.data?.error?.message || error.message,
     });
   }
 });
 
 // PDF generation is now handled client-side with jsPDF
 // This endpoint is kept for backward compatibility but is no longer used
-app.post('/api/generate-pdf', async (req, res) => {
-  res.status(200).json({ 
-    message: 'PDF generation is now handled client-side',
-    deprecated: true
+app.post("/api/generate-pdf", async (req, res) => {
+  res.status(200).json({
+    message: "PDF generation is now handled client-side",
+    deprecated: true,
   });
 });
 
@@ -223,42 +240,58 @@ app.post('/api/generate-pdf', async (req, res) => {
  * Proxy FlowCV resume download (browser-safe).
  * Uses server-side FlowCV session cookie and streams PDF bytes.
  */
-app.get('/api/flowcv/download-pdf', async (req, res) => {
+app.get("/api/flowcv/download-pdf", async (req, res) => {
   try {
     await ensureFlowCvSession();
     const cookie = getFlowCvCookie();
     if (!cookie) {
-      return res.status(401).json({ error: 'FlowCV session is not initialized' });
+      return res
+        .status(401)
+        .json({ error: "FlowCV session is not initialized" });
     }
 
-    const resumeId = String(req.query.resumeId || FLOWCV_RESUME_ID || '').trim();
+    const resumeId = String(
+      req.query.resumeId || FLOWCV_RESUME_ID || "",
+    ).trim();
     const previewPageCountRaw = req.query.previewPageCount ?? 2;
     const previewPageCount = Number(previewPageCountRaw);
 
     if (!resumeId) {
-      return res.status(400).json({ error: 'resumeId is required' });
+      return res.status(400).json({ error: "resumeId is required" });
     }
 
     const pdf = await with401Retry(async (c) => {
       return await downloadFlowCvResumePdf({
         resumeId,
-        previewPageCount: Number.isFinite(previewPageCount) ? previewPageCount : 2,
+        previewPageCount: Number.isFinite(previewPageCount)
+          ? previewPageCount
+          : 2,
         cookie: c,
       });
     });
 
-    const filename = String(req.query.filename || 'flowcv-resume.pdf').trim() || 'flowcv-resume.pdf';
-    res.setHeader('Content-Type', pdf.contentType || 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename.replace(/"/g, '')}"`);
+    const filename =
+      String(req.query.filename || "flowcv-resume.pdf").trim() ||
+      "flowcv-resume.pdf";
+    res.setHeader("Content-Type", pdf.contentType || "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filename.replace(/"/g, "")}"`,
+    );
     return res.status(200).send(pdf.buffer);
   } catch (error) {
-    console.error('[FlowCV] download-pdf error:', error?.message || error);
-    return res.status(500).json({ error: 'Failed to download FlowCV PDF', details: error?.message || String(error) });
+    console.error("[FlowCV] download-pdf error:", error?.message || error);
+    return res
+      .status(500)
+      .json({
+        error: "Failed to download FlowCV PDF",
+        details: error?.message || String(error),
+      });
   }
 });
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
 });
 
 app.listen(PORT, () => {
@@ -266,6 +299,9 @@ app.listen(PORT, () => {
   initializeFlowCvSession()
     .then((r) => console.log(`[FlowCV] Session ready (${r.source})`))
     .catch((err) =>
-      console.error('[FlowCV] Session init failed (will retry on first sync):', err.message)
+      console.error(
+        "[FlowCV] Session init failed (will retry on first sync):",
+        err.message,
+      ),
     );
 });
