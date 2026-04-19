@@ -1,4 +1,6 @@
 import axios from "axios";
+import { flowCvRequestContext } from "../backend/apis/flowcv/flowCvRequestContext.js";
+import { parseSignedFlowCvSessionFromCookieHeader } from "../backend/apis/flowcv/flowCvBrowserCookie.js";
 import { syncFlowCvPersonalDetailsAfterTailor } from "../backend/apis/flowcv/syncPersonalDetails.js";
 import { parseTailoredResumeTextToJson } from "../backend/resumeTextToJson.js";
 
@@ -31,6 +33,10 @@ const validateTailoredResumeJson = (json) => {
 };
 
 export default async function handler(req, res) {
+  const parsed = parseSignedFlowCvSessionFromCookieHeader(
+    req.headers?.cookie || "",
+  );
+  return flowCvRequestContext.run(parsed, async () => {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
@@ -206,4 +212,5 @@ OUTPUT FORMAT:
       details: error.response?.data?.error?.message || error.message,
     });
   }
+  });
 }

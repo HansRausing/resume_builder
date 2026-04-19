@@ -15,6 +15,13 @@ import {
   setFlowCvActiveResumeId,
   syncActiveResumeFromFlowCvApi,
 } from "./apis/flowcv/session.js";
+import { flowCvRequestContext } from "./apis/flowcv/flowCvRequestContext.js";
+import {
+  parseSignedFlowCvSessionFromCookieHeader,
+  buildFlowCvSessionSetCookieValue,
+  buildFlowCvSessionClearCookieValue,
+  hasFlowCvBrowserCookieSupport,
+} from "./apis/flowcv/flowCvBrowserCookie.js";
 import { with401Retry } from "./apis/flowcv/flowCvWith401Retry.js";
 import { downloadFlowCvResumePdf } from "./apis/flowcv/downloadResumePdf.js";
 import { fetchFlowCvResumesAll } from "./apis/flowcv/fetchResumesAll.js";
@@ -26,6 +33,13 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
+
+app.use((req, res, next) => {
+  const parsed = parseSignedFlowCvSessionFromCookieHeader(
+    req.headers.cookie || "",
+  );
+  flowCvRequestContext.run(parsed, () => next());
+});
 
 // OpenAI API endpoint
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
@@ -378,6 +392,18 @@ app.post("/api/flowcv/login", async (req, res) => {
       });
     }
     const info = getFlowCvSessionInfo();
+    const browserCookie = buildFlowCvSessionSetCookieValue(
+      getFlowCvCookie(),
+      getFlowCvActiveResumeId(),
+      info.email || "",
+    );
+    if (browserCookie) {
+      res.append("Set-Cookie", browserCookie);
+    } else if (!hasFlowCvBrowserCookieSupport()) {
+      console.warn(
+        "[FlowCV] FLOWCV_SESSION_SECRET is not set; deploy one on Vercel so PDF download works across serverless instances.",
+      );
+    }
     res.json({
       ok: true,
       email: info.email,
@@ -395,6 +421,8 @@ app.post("/api/flowcv/login", async (req, res) => {
 app.post("/api/flowcv/logout", (req, res) => {
   try {
     logoutFlowCvSession();
+    const clr = buildFlowCvSessionClearCookieValue();
+    if (clr) res.append("Set-Cookie", clr);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e?.message || e) });
@@ -419,6 +447,12 @@ app.post("/api/flowcv/active-resume", async (req, res) => {
     if (directId) {
       setFlowCvActiveResumeId(directId);
       await syncActiveResumeFromFlowCvApi();
+      const sc = buildFlowCvSessionSetCookieValue(
+        getFlowCvCookie(),
+        getFlowCvActiveResumeId(),
+        getFlowCvSessionInfo().email || "",
+      );
+      if (sc) res.append("Set-Cookie", sc);
       return res.json({ ok: true, resumeId: getFlowCvActiveResumeId() });
     }
 
@@ -451,6 +485,12 @@ app.post("/api/flowcv/active-resume", async (req, res) => {
     }
     setFlowCvActiveResumeId(picked);
     await syncActiveResumeFromFlowCvApi();
+    const sc2 = buildFlowCvSessionSetCookieValue(
+      getFlowCvCookie(),
+      getFlowCvActiveResumeId(),
+      getFlowCvSessionInfo().email || "",
+    );
+    if (sc2) res.append("Set-Cookie", sc2);
     return res.json({
       ok: true,
       resumeId: getFlowCvActiveResumeId(),

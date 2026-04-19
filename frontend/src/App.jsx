@@ -22,7 +22,9 @@ function App() {
 
   const loadFlowCvSessionStatus = useCallback(async () => {
     try {
-      const { data } = await axios.get("/api/flowcv/session");
+      const { data } = await axios.get("/api/flowcv/session", {
+        withCredentials: true,
+      });
       setFlowCvConnected(Boolean(data?.connected));
       setFlowCvSessionEmail(data?.email || "");
       setFlowCvResumeId(data?.resumeId || "");
@@ -45,10 +47,14 @@ function App() {
     setFlowCvAuthLoading(true);
     setFlowCvAuthError("");
     try {
-      await axios.post("/api/flowcv/login", {
-        email: flowCvEmail.trim(),
-        password: flowCvPassword,
-      });
+      await axios.post(
+        "/api/flowcv/login",
+        {
+          email: flowCvEmail.trim(),
+          password: flowCvPassword,
+        },
+        { withCredentials: true },
+      );
       setFlowCvPassword("");
       await loadFlowCvSessionStatus();
     } catch (err) {
@@ -66,7 +72,7 @@ function App() {
     setFlowCvAuthLoading(true);
     setFlowCvAuthError("");
     try {
-      await axios.post("/api/flowcv/logout");
+      await axios.post("/api/flowcv/logout", {}, { withCredentials: true });
       await loadFlowCvSessionStatus();
     } catch (err) {
       setFlowCvAuthError(
@@ -121,11 +127,15 @@ function App() {
     setResumeFileName("");
 
     try {
-      const response = await axios.post("/api/tailor-resume", {
-        currentResume,
-        jobDescription,
-        apiKey,
-      });
+      const response = await axios.post(
+        "/api/tailor-resume",
+        {
+          currentResume,
+          jobDescription,
+          apiKey,
+        },
+        { withCredentials: true },
+      );
 
       setTailoredResume(response.data.tailoredResume);
       setResumeFileName(
@@ -162,8 +172,13 @@ function App() {
         "flowcv-resume.pdf",
       );
       const res = await axios.get("/api/flowcv/download-pdf", {
-        params: { previewPageCount: 2, filename: fileName },
+        params: {
+          previewPageCount: 2,
+          filename: fileName,
+          ...(flowCvResumeId.trim() ? { resumeId: flowCvResumeId.trim() } : {}),
+        },
         responseType: "arraybuffer",
+        withCredentials: true,
       });
 
       downloadPDF(res.data, fileName);

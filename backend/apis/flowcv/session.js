@@ -1,5 +1,6 @@
 import { flowCvLogin } from './auth.js';
 import { fetchFlowCvResumesAll } from './fetchResumesAll.js';
+import { flowCvRequestContext } from './flowCvRequestContext.js';
 import {
   readStoredSession,
   writeStoredCookie,
@@ -51,6 +52,9 @@ function persistSessionFile() {
  * FlowCV resume id for save/download/sync (session + persisted resumes/all).
  */
 export function getFlowCvActiveResumeId() {
+  const incoming = flowCvRequestContext.getStore();
+  const fromCtx = String(incoming?.resumeId || '').trim();
+  if (fromCtx) return fromCtx;
   const m = String(memoryResumeId || '').trim();
   if (m) return m;
   const stored = readStoredSession();
@@ -103,9 +107,10 @@ export function setFlowCvActiveResumeId(resumeId) {
  * Fetch resumes/all and sync active resume id + personalDetails + content from the matching resume.
  */
 export async function syncActiveResumeFromFlowCvApi() {
-  if (!memoryCookie) return;
+  const cookie = getFlowCvCookie();
+  if (!cookie) return;
   try {
-    const body = await fetchFlowCvResumesAll({ cookie: memoryCookie });
+    const body = await fetchFlowCvResumesAll({ cookie });
     const resumes = body?.data?.resumes;
     if (!Array.isArray(resumes) || resumes.length === 0) {
       console.warn('[FlowCV] resumes/all returned no resumes');
@@ -148,13 +153,24 @@ export async function ensureFlowCvPersonalDetailsTemplate() {
  * Current session cookie for FlowCV API calls (empty if not initialized).
  */
 export function getFlowCvCookie() {
-  return memoryCookie || '';
+  const incoming = flowCvRequestContext.getStore();
+  if (incoming?.sessionCookie) return incoming.sessionCookie;
+  if (memoryCookie) return memoryCookie;
+  return readStoredCookie() || '';
 }
 
 /**
  * @returns {{ connected: boolean, email: string, resumeId: string }}
  */
 export function getFlowCvSessionInfo() {
+  const incoming = flowCvRequestContext.getStore();
+  if (incoming?.sessionCookie) {
+    return {
+      connected: true,
+      email: incoming.email || sessionEmail || '',
+      resumeId: getFlowCvActiveResumeId(),
+    };
+  }
   if (memoryCookie) {
     return {
       connected: true,
@@ -270,6 +286,12 @@ let initInFlight = null;
  * Ensures a cookie exists (used before FlowCV calls if startup init failed).
  */
 export function ensureFlowCvSession() {
+  const incoming = flowCvRequestContext.getStore();
+  if (incoming?.sessionCookie && !memoryCookie) {
+    memoryCookie = incoming.sessionCookie;
+    memoryResumeId = String(incoming.resumeId || '').trim();
+    sessionEmail = String(incoming.email || '').trim();
+  }
   if (memoryCookie) return Promise.resolve();
   if (!initInFlight) {
     initInFlight = initializeFlowCvSession().finally(() => {
