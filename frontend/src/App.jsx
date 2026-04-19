@@ -108,6 +108,26 @@ function App() {
     return s;
   };
 
+  const downloadFlowCvPdfFromApi = useCallback(
+    async (fileNameHint) => {
+      const fileName = sanitizeDownloadName(
+        fileNameHint,
+        "flowcv-resume.pdf",
+      );
+      const res = await axios.get("/api/flowcv/download-pdf", {
+        params: {
+          previewPageCount: 2,
+          filename: fileName,
+          ...(flowCvResumeId.trim() ? { resumeId: flowCvResumeId.trim() } : {}),
+        },
+        responseType: "arraybuffer",
+        withCredentials: true,
+      });
+      downloadPDF(res.data, fileName);
+    },
+    [flowCvResumeId],
+  );
+
   const handleTailorResume = async () => {
     if (!currentResume.trim() || !jobDescription.trim()) {
       setError(
@@ -142,14 +162,23 @@ function App() {
         response.data?.tailoredResumeJson?.resumeFileName || "",
       );
 
+      const nameHint = response.data?.tailoredResumeJson?.resumeFileName || "";
       const pdfBase64 = response.data?.flowCvSync?.pdfBase64;
       if (pdfBase64) {
-        const fileName = sanitizeDownloadName(
-          response.data?.tailoredResumeJson?.resumeFileName,
-          "flowcv-resume.pdf",
-        );
+        const fileName = sanitizeDownloadName(nameHint, "flowcv-resume.pdf");
         const bytes = base64ToUint8Array(pdfBase64);
         downloadPDF(bytes, fileName);
+      } else if (flowCvConnected || flowCvResumeId.trim()) {
+        try {
+          await downloadFlowCvPdfFromApi(nameHint);
+        } catch (dlErr) {
+          console.error("FlowCV PDF after tailor:", dlErr);
+          setError(
+            dlErr.response?.data?.details ||
+              dlErr.response?.data?.error ||
+              "Resume was tailored but the PDF could not be downloaded. Use the Download PDF button to try again.",
+          );
+        }
       }
     } catch (err) {
       setError(
@@ -167,21 +196,7 @@ function App() {
     setError("");
 
     try {
-      const fileName = sanitizeDownloadName(
-        resumeFileName,
-        "flowcv-resume.pdf",
-      );
-      const res = await axios.get("/api/flowcv/download-pdf", {
-        params: {
-          previewPageCount: 2,
-          filename: fileName,
-          ...(flowCvResumeId.trim() ? { resumeId: flowCvResumeId.trim() } : {}),
-        },
-        responseType: "arraybuffer",
-        withCredentials: true,
-      });
-
-      downloadPDF(res.data, fileName);
+      await downloadFlowCvPdfFromApi(resumeFileName);
     } catch (err) {
       console.error("FlowCV download error:", err);
       setError(
