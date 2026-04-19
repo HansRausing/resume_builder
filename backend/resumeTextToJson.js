@@ -126,7 +126,7 @@ export function parseTailoredResumeTextToJson(text) {
   const full = String(text || "");
   const lines = full.split(/\r?\n/);
 
-  const summaryIdx = findLineIndex(lines, /^summary(\s+|$)/i);
+  const summaryIdx = findLineIndex(lines, /^(summary|profile)(\s+|$)/i);
   const impactIdx = findLineIndex(lines, /^impact(\s+|$)/i);
   const techIdx = findLineIndex(lines, /^(core technologies|core skills)$/i);
   const workIdx = findLineIndex(lines, /^work experience$/i);

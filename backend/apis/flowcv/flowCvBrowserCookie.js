@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-/** HttpOnly cookie carrying signed FlowCV session (works across Vercel lambdas). */
+/** HttpOnly cookie carrying the FlowCV session token, signed when a secret is configured. */
 export const FLOWCV_BROWSER_COOKIE_NAME = 'rb_flowcv';
 
 function getSecret() {
@@ -11,7 +11,7 @@ function getSecret() {
 }
 
 export function hasFlowCvBrowserCookieSupport() {
-  return getSecret() != null;
+  return true;
 }
 
 function parseCookieValue(header, name) {
@@ -39,9 +39,17 @@ function parseCookieValue(header, name) {
  */
 export function parseSignedFlowCvSessionFromCookieHeader(cookieHeader) {
   const secret = getSecret();
-  if (!secret) return null;
   const raw = parseCookieValue(cookieHeader, FLOWCV_BROWSER_COOKIE_NAME);
   if (!raw) return null;
+
+  if (!secret) {
+    return {
+      sessionCookie: raw,
+      resumeId: '',
+      email: '',
+    };
+  }
+
   const dot = raw.lastIndexOf('.');
   if (dot <= 0) return null;
   const body = raw.slice(0, dot);
@@ -74,28 +82,34 @@ export function parseSignedFlowCvSessionFromCookieHeader(cookieHeader) {
  * @returns {string | null} full Set-Cookie header value (append with res.append('Set-Cookie', …))
  */
 export function buildFlowCvSessionSetCookieValue(sessionCookie, resumeId, email) {
+  if (!sessionCookie) return null;
   const secret = getSecret();
-  if (!secret || !sessionCookie) return null;
-  const payload = {
-    v: 1,
-    c: sessionCookie,
-    rid: String(resumeId || '').trim(),
-    e: String(email || '').trim(),
-    iat: Date.now(),
-  };
-  const json = JSON.stringify(payload);
-  const body = Buffer.from(json, 'utf8').toString('base64url');
-  const sig = createHmac('sha256', secret).update(body).digest('base64url');
-  const token = `${body}.${sig}`;
-  if (token.length > 3800) {
-    console.warn(
-      '[FlowCV] Signed session exceeds safe cookie size; set FLOWCV_SESSION_SECRET and retry, or shorten upstream session.',
-    );
-    return null;
-  }
   const secure = Boolean(process.env.VERCEL) || process.env.NODE_ENV === 'production';
+
+  let cookieValue = encodeURIComponent(sessionCookie);
+  if (secret) {
+    const payload = {
+      v: 1,
+      c: sessionCookie,
+      rid: String(resumeId || '').trim(),
+      e: String(email || '').trim(),
+      iat: Date.now(),
+    };
+    const json = JSON.stringify(payload);
+    const body = Buffer.from(json, 'utf8').toString('base64url');
+    const sig = createHmac('sha256', secret).update(body).digest('base64url');
+    const token = `${body}.${sig}`;
+    if (token.length > 3800) {
+      console.warn(
+        '[FlowCV] Signed session exceeds safe cookie size; set FLOWCV_SESSION_SECRET and retry, or shorten upstream session.',
+      );
+      return null;
+    }
+    cookieValue = encodeURIComponent(token);
+  }
+
   const parts = [
-    `${FLOWCV_BROWSER_COOKIE_NAME}=${encodeURIComponent(token)}`,
+    `${FLOWCV_BROWSER_COOKIE_NAME}=${cookieValue}`,
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',

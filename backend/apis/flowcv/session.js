@@ -1,26 +1,6 @@
 import { flowCvLogin } from './auth.js';
 import { fetchFlowCvResumesAll } from './fetchResumesAll.js';
 import { flowCvRequestContext } from './flowCvRequestContext.js';
-import {
-  readStoredSession,
-  writeStoredCookie,
-  clearStoredSession,
-} from './sessionStore.js';
-
-/** In-memory FlowCV session cookie (hydrated from disk or login). */
-let memoryCookie = '';
-
-/** Email for the current in-memory session (UI login). */
-let sessionEmail = '';
-
-/** FlowCV resume `id` from GET resumes/all (first resume after login unless set). */
-let memoryResumeId = '';
-
-/** Snapshot of `resume.personalDetails` from resumes/all for the active resume. */
-let memoryPersonalDetailsTemplate = null;
-
-/** Snapshot of `resume.content` from resumes/all (profile, work, skill, custom1, …). */
-let memoryResumeContent = null;
 
 function clonePlain(obj) {
   return JSON.parse(JSON.stringify(obj));
@@ -35,43 +15,21 @@ function resumeContentHasProfile(content) {
   );
 }
 
-function persistSessionFile() {
-  if (!memoryCookie) return;
-  writeStoredCookie(
-    memoryCookie,
-    sessionEmail || undefined,
-    memoryResumeId || undefined,
-    memoryPersonalDetailsTemplate != null
-      ? clonePlain(memoryPersonalDetailsTemplate)
-      : undefined,
-    memoryResumeContent != null ? clonePlain(memoryResumeContent) : undefined,
-  );
-}
-
 /**
  * FlowCV resume id for save/download/sync (session + persisted resumes/all).
  */
 export function getFlowCvActiveResumeId() {
   const incoming = flowCvRequestContext.getStore();
-  const fromCtx = String(incoming?.resumeId || '').trim();
-  if (fromCtx) return fromCtx;
-  const m = String(memoryResumeId || '').trim();
-  if (m) return m;
-  const stored = readStoredSession();
-  return String(stored?.resumeId || '').trim();
+  return String(incoming?.resumeId || '').trim();
 }
 
 /**
  * Deep clone of FlowCV `personalDetails` for the active resume (from resumes/all), or null.
  */
 export function getFlowCvPersonalDetailsTemplate() {
-  if (memoryPersonalDetailsTemplate != null) {
-    return clonePlain(memoryPersonalDetailsTemplate);
-  }
-  const s = readStoredSession();
-  if (s?.personalDetails && typeof s.personalDetails === 'object') {
-    memoryPersonalDetailsTemplate = clonePlain(s.personalDetails);
-    return clonePlain(memoryPersonalDetailsTemplate);
+  const incoming = flowCvRequestContext.getStore();
+  if (incoming?.personalDetails && typeof incoming.personalDetails === 'object') {
+    return clonePlain(incoming.personalDetails);
   }
   return null;
 }
@@ -80,33 +38,34 @@ export function getFlowCvPersonalDetailsTemplate() {
  * Deep clone of `resume.content` from resumes/all for the active resume, or null.
  */
 export function getFlowCvResumeContent() {
-  if (memoryResumeContent != null) {
-    return clonePlain(memoryResumeContent);
-  }
-  const s = readStoredSession();
-  if (s?.resumeContent && typeof s.resumeContent === 'object') {
-    memoryResumeContent = clonePlain(s.resumeContent);
-    return clonePlain(memoryResumeContent);
+  const incoming = flowCvRequestContext.getStore();
+  if (incoming?.resumeContent && typeof incoming.resumeContent === 'object') {
+    return clonePlain(incoming.resumeContent);
   }
   return null;
 }
 
 /**
- * Set active resume id (must match a resume in the account). Persists with session cookie.
+ * Set active resume id (must match a resume in the account).
  * Call {@link syncActiveResumeFromFlowCvApi} afterward to refresh snapshots from FlowCV.
  * @param {string} resumeId
  */
 export function setFlowCvActiveResumeId(resumeId) {
   const id = String(resumeId || '').trim();
   if (!id) throw new Error('resumeId is required');
-  memoryResumeId = id;
-  persistSessionFile();
+  const incoming = flowCvRequestContext.getStore();
+  if (!incoming) {
+    throw new Error('FlowCV request context is not available');
+  }
+  incoming.resumeId = id;
 }
 
 /**
  * Fetch resumes/all and sync active resume id + personalDetails + content from the matching resume.
  */
 export async function syncActiveResumeFromFlowCvApi() {
+  const incoming = flowCvRequestContext.getStore();
+  if (!incoming) return;
   const cookie = getFlowCvCookie();
   if (!cookie) return;
   try {
@@ -116,7 +75,7 @@ export async function syncActiveResumeFromFlowCvApi() {
       console.warn('[FlowCV] resumes/all returned no resumes');
       return;
     }
-    const wanted = String(memoryResumeId || '').trim();
+    const wanted = String(incoming.resumeId || '').trim();
     let target = resumes[0];
     if (wanted) {
       const found = resumes.find((r) => String(r?.id || '').trim() === wanted);
@@ -124,16 +83,15 @@ export async function syncActiveResumeFromFlowCvApi() {
     }
     const rid = String(target?.id || '').trim();
     if (!rid) return;
-    memoryResumeId = rid;
+    incoming.resumeId = rid;
     const pd = target?.personalDetails;
     if (pd && typeof pd === 'object') {
-      memoryPersonalDetailsTemplate = clonePlain(pd);
+      incoming.personalDetails = clonePlain(pd);
     }
     const content = target?.content;
     if (content && typeof content === 'object') {
-      memoryResumeContent = clonePlain(content);
+      incoming.resumeContent = clonePlain(content);
     }
-    persistSessionFile();
   } catch (err) {
     console.warn('[FlowCV] Could not sync resume snapshot from resumes/all:', err?.message || err);
   }
@@ -154,9 +112,7 @@ export async function ensureFlowCvPersonalDetailsTemplate() {
  */
 export function getFlowCvCookie() {
   const incoming = flowCvRequestContext.getStore();
-  if (incoming?.sessionCookie) return incoming.sessionCookie;
-  if (memoryCookie) return memoryCookie;
-  return readStoredCookie() || '';
+  return incoming?.sessionCookie || '';
 }
 
 /**
@@ -167,32 +123,22 @@ export function getFlowCvSessionInfo() {
   if (incoming?.sessionCookie) {
     return {
       connected: true,
-      email: incoming.email || sessionEmail || '',
+      email: String(incoming.email || '').trim(),
       resumeId: getFlowCvActiveResumeId(),
     };
   }
-  if (memoryCookie) {
-    return {
-      connected: true,
-      email: sessionEmail || '',
-      resumeId: getFlowCvActiveResumeId(),
-    };
-  }
-  const stored = readStoredSession();
-  const rid = String(stored?.resumeId || '').trim();
   return {
-    connected: Boolean(stored?.cookie),
-    email: stored?.email || '',
-    resumeId: rid,
+    connected: false,
+    email: '',
+    resumeId: '',
   };
 }
 
 /**
- * Sign in with FlowCV credentials (app.flowcv.com). Persists session cookie server-side.
- * Fetches GET resumes/all and stores resume id, personalDetails, and content for subsequent API calls.
+ * Sign in with FlowCV credentials (app.flowcv.com).
  * @param {string} email
  * @param {string} password
- * @returns {Promise<{ ok: true, email: string, resumeId: string } | { ok: false }>}
+ * @returns {Promise<{ ok: true, cookie: string, email: string } | { ok: false }>}
  */
 export async function loginFlowCvSession(email, password) {
   const e = String(email ?? '').trim();
@@ -204,75 +150,25 @@ export async function loginFlowCvSession(email, password) {
   if (loginResult === false) {
     return { ok: false };
   }
-  const { cookie } = loginResult;
-  memoryCookie = cookie;
-  sessionEmail = e;
-  memoryResumeId = '';
-  memoryPersonalDetailsTemplate = null;
-  memoryResumeContent = null;
-  writeStoredCookie(memoryCookie, sessionEmail);
-  await syncActiveResumeFromFlowCvApi();
-  return { ok: true, email: sessionEmail, resumeId: getFlowCvActiveResumeId() };
+  return { ok: true, email: e, cookie: loginResult.cookie };
 }
 
 export function logoutFlowCvSession() {
-  memoryCookie = '';
-  sessionEmail = '';
-  memoryResumeId = '';
-  memoryPersonalDetailsTemplate = null;
-  memoryResumeContent = null;
-  clearStoredSession();
+  return { ok: true };
 }
 
 /**
- * Load cookie from disk if present. Safe to call multiple times.
- * @returns {Promise<{ ok: true, source: 'memory' | 'disk' } | { ok: false, source: 'none' }>}
+ * Load cookie from disk if present. No shared server session is used.
+ * @returns {Promise<{ ok: false, source: 'none' }>}
  */
 export async function initializeFlowCvSession() {
-  if (memoryCookie) {
-    return { ok: true, source: 'memory' };
-  }
-
-  const fromDisk = readStoredSession();
-  if (fromDisk?.cookie) {
-    memoryCookie = fromDisk.cookie;
-    sessionEmail = fromDisk.email || '';
-    memoryResumeId = String(fromDisk.resumeId || '').trim();
-    if (fromDisk.personalDetails && typeof fromDisk.personalDetails === 'object') {
-      memoryPersonalDetailsTemplate = clonePlain(fromDisk.personalDetails);
-    } else {
-      memoryPersonalDetailsTemplate = null;
-    }
-    if (fromDisk.resumeContent && typeof fromDisk.resumeContent === 'object') {
-      memoryResumeContent = clonePlain(fromDisk.resumeContent);
-    } else {
-      memoryResumeContent = null;
-    }
-    if (
-      !memoryResumeId ||
-      !memoryPersonalDetailsTemplate ||
-      !resumeContentHasProfile(memoryResumeContent)
-    ) {
-      await syncActiveResumeFromFlowCvApi();
-    } else {
-      persistSessionFile();
-    }
-    return { ok: true, source: 'disk' };
-  }
-
   return { ok: false, source: 'none' };
 }
 
 /**
- * Drop disk + memory session after HTTP 401. User must sign in again from the UI.
+ * Drop server-side session after HTTP 401. Users must sign in again from the UI.
  */
 export async function refreshFlowCvSession() {
-  memoryCookie = '';
-  sessionEmail = '';
-  memoryResumeId = '';
-  memoryPersonalDetailsTemplate = null;
-  memoryResumeContent = null;
-  clearStoredSession();
   const err = new Error(
     'FlowCV session expired. Please sign in again with your FlowCV email and password.',
   );
@@ -280,23 +176,10 @@ export async function refreshFlowCvSession() {
   throw err;
 }
 
-let initInFlight = null;
-
-/**
- * Ensures a cookie exists (used before FlowCV calls if startup init failed).
- */
 export function ensureFlowCvSession() {
   const incoming = flowCvRequestContext.getStore();
-  if (incoming?.sessionCookie && !memoryCookie) {
-    memoryCookie = incoming.sessionCookie;
-    memoryResumeId = String(incoming.resumeId || '').trim();
-    sessionEmail = String(incoming.email || '').trim();
+  if (incoming?.sessionCookie) {
+    return Promise.resolve();
   }
-  if (memoryCookie) return Promise.resolve();
-  if (!initInFlight) {
-    initInFlight = initializeFlowCvSession().finally(() => {
-      initInFlight = null;
-    });
-  }
-  return initInFlight;
+  return Promise.reject(new Error('FlowCV session is not initialized'));
 }

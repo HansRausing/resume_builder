@@ -71,7 +71,6 @@ const validateTailoredResumeJson = (json) => {
   if (isBlank(j.fullName)) return { ok: false, missing: "fullName" };
   if (isBlank(j.title)) return { ok: false, missing: "title" };
   if (isBlank(j.summary)) return { ok: false, missing: "summary" };
-  if (!hasNonEmptyObject(j.impact)) return { ok: false, missing: "impact" };
   if (!hasNonEmptyObject(j.coreTechnologies))
     return { ok: false, missing: "coreTechnologies" };
   if (!hasNonEmptyStringArray(j.workExperienceBulletsOnly))
@@ -194,7 +193,7 @@ OUTPUT FORMAT:
 - Maintain professional flow and readability
 - Should look like human-written, especially, no need "—" symbols in the text and verbal tone.
 - Please ensure that words are not repeated, there are no spelling errors, and all grammar is correct.
-- Give a professional file name for a resume. Use spaces between words in the name, not camel case or underscores. The format should be: [FirstName LastName]_[Job Title]-[Company Name]. For example: "John Doe_Software Engineer-Acme Corp.pdf".`;
+- In the end, give a professional file name for a resume. Use spaces between words in the name, not camel case or underscores. The format should be: [FirstName LastName]_[Job Title]-[Company Name]. For example: "John Doe_Software Engineer-Acme Corp.pdf".`;
 
     const maxAttempts = 3;
     let tailoredResume = "";
@@ -407,11 +406,20 @@ app.post("/api/flowcv/login", async (req, res) => {
         details: "Invalid email or password",
       });
     }
-    const info = getFlowCvSessionInfo();
+
+    let resumeId = "";
+    await flowCvRequestContext.run(
+      { sessionCookie: loginOutcome.cookie, email: loginOutcome.email },
+      async () => {
+        await syncActiveResumeFromFlowCvApi();
+        resumeId = getFlowCvActiveResumeId();
+      },
+    );
+
     const browserCookie = buildFlowCvSessionSetCookieValue(
-      getFlowCvCookie(),
-      getFlowCvActiveResumeId(),
-      info.email || "",
+      loginOutcome.cookie,
+      resumeId,
+      loginOutcome.email || "",
     );
     if (browserCookie) {
       res.append("Set-Cookie", browserCookie);
@@ -422,8 +430,8 @@ app.post("/api/flowcv/login", async (req, res) => {
     }
     res.json({
       ok: true,
-      email: info.email,
-      resumeId: info.resumeId || undefined,
+      email: loginOutcome.email,
+      resumeId: resumeId || undefined,
     });
   } catch (error) {
     console.error("[FlowCV] login error:", error?.message || error);

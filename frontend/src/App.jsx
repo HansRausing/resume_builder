@@ -20,6 +20,49 @@ function App() {
   const [flowCvAuthLoading, setFlowCvAuthLoading] = useState(false);
   const [flowCvAuthError, setFlowCvAuthError] = useState("");
 
+  const LOCAL_STORAGE_FLOWCV_SESSION = "rb_flowcv_session";
+
+  const saveFlowCvSessionToLocalStorage = useCallback((data) => {
+    if (typeof window === "undefined") return;
+    try {
+      if (data?.connected) {
+        window.localStorage.setItem(
+          LOCAL_STORAGE_FLOWCV_SESSION,
+          JSON.stringify({
+            email: data.email || "",
+            resumeId: data.resumeId || "",
+          }),
+        );
+      } else {
+        window.localStorage.removeItem(LOCAL_STORAGE_FLOWCV_SESSION);
+      }
+    } catch {
+      /* ignore localStorage failures */
+    }
+  }, []);
+
+  const loadFlowCvSessionFromLocalStorage = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(LOCAL_STORAGE_FLOWCV_SESSION);
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      if (parsed?.email) setFlowCvSessionEmail(parsed.email);
+      if (parsed?.resumeId) setFlowCvResumeId(parsed.resumeId);
+    } catch {
+      /* ignore invalid localStorage */
+    }
+  }, []);
+
+  const clearFlowCvSessionFromLocalStorage = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.removeItem(LOCAL_STORAGE_FLOWCV_SESSION);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const loadFlowCvSessionStatus = useCallback(async () => {
     try {
       const { data } = await axios.get("/api/flowcv/session", {
@@ -28,16 +71,19 @@ function App() {
       setFlowCvConnected(Boolean(data?.connected));
       setFlowCvSessionEmail(data?.email || "");
       setFlowCvResumeId(data?.resumeId || "");
+      saveFlowCvSessionToLocalStorage(data);
     } catch {
       setFlowCvConnected(false);
       setFlowCvSessionEmail("");
       setFlowCvResumeId("");
+      clearFlowCvSessionFromLocalStorage();
     }
-  }, []);
+  }, [saveFlowCvSessionToLocalStorage, clearFlowCvSessionFromLocalStorage]);
 
   useEffect(() => {
+    loadFlowCvSessionFromLocalStorage();
     loadFlowCvSessionStatus();
-  }, [loadFlowCvSessionStatus]);
+  }, [loadFlowCvSessionFromLocalStorage, loadFlowCvSessionStatus]);
 
   const handleFlowCvLogin = async () => {
     if (!flowCvEmail.trim() || !flowCvPassword) {
