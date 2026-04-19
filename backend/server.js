@@ -193,7 +193,7 @@ OUTPUT FORMAT:
 - Maintain professional flow and readability
 - Should look like human-written, especially, no need "—" symbols in the text and verbal tone.
 - Please ensure that words are not repeated, there are no spelling errors, and all grammar is correct.
-- In the end, give a professional file name for a resume. Use spaces between words in the name, not camel case or underscores. The format should be: [FirstName LastName]_[Job Title]-[Company Name]. For example: "John Doe_Software Engineer-Acme Corp.pdf".`;
+- In the end, give a professional file name for a resume. Use spaces between words in the name, not camel case or underscores. The format should be: [FirstName LastName]_[Job Title]-[Company Name]. For example: Resume file name: John Doe_Software Engineer-Acme Corp.pdf.`;
 
     const maxAttempts = 3;
     let tailoredResume = "";
