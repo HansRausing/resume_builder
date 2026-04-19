@@ -20,7 +20,7 @@ const parseImpactLines = (sectionLines) => {
   for (const raw of sectionLines) {
     const line = raw.trim();
     if (!line) continue;
-    const colon = line.indexOf(':');
+    const colon = line.indexOf(":");
     if (colon === -1) continue;
     const key = line.slice(0, colon).trim();
     const value = line.slice(colon + 1).trim();
@@ -32,23 +32,23 @@ const parseImpactLines = (sectionLines) => {
 
 const stripOuterBold = (line) => {
   let s = line.trim();
-  while (s.startsWith('**')) s = s.slice(2).trim();
-  while (s.endsWith('**')) s = s.slice(0, -2).trim();
+  while (s.startsWith("**")) s = s.slice(2).trim();
+  while (s.endsWith("**")) s = s.slice(0, -2).trim();
   return s;
 };
 
 /** Split on commas that are not inside parentheses. */
 const splitCommaList = (rest) => {
   const parts = [];
-  let cur = '';
+  let cur = "";
   let depth = 0;
   for (let i = 0; i < rest.length; i++) {
     const ch = rest[i];
-    if (ch === '(') depth++;
-    else if (ch === ')') depth = Math.max(0, depth - 1);
-    if (ch === ',' && depth === 0) {
+    if (ch === "(") depth++;
+    else if (ch === ")") depth = Math.max(0, depth - 1);
+    if (ch === "," && depth === 0) {
       if (cur.trim()) parts.push(cur.trim());
-      cur = '';
+      cur = "";
     } else {
       cur += ch;
     }
@@ -62,13 +62,13 @@ const parseCoreTechnologiesLines = (sectionLines) => {
   for (const raw of sectionLines) {
     let line = stripOuterBold(raw);
     if (!line) continue;
-    const colon = line.indexOf(':');
+    const colon = line.indexOf(":");
     if (colon === -1) {
-      core['_uncategorized'] = core['_uncategorized'] || [];
-      core['_uncategorized'].push(line);
+      core["_uncategorized"] = core["_uncategorized"] || [];
+      core["_uncategorized"].push(line);
       continue;
     }
-    const category = line.slice(0, colon).replace(/\*\*/g, '').trim();
+    const category = line.slice(0, colon).replace(/\*\*/g, "").trim();
     const rest = line.slice(colon + 1).trim();
     if (!category) continue;
     core[category] = splitCommaList(rest);
@@ -79,9 +79,9 @@ const parseCoreTechnologiesLines = (sectionLines) => {
 const isBulletLine = (line) => /^\s*[•\-\*]/.test(line);
 
 const stripBulletPrefix = (line) =>
-  String(line || '')
+  String(line || "")
     .trim()
-    .replace(/^\s*[•\-\*]\s+/, '')
+    .replace(/^\s*[•\-\*]\s+/, "")
     .trim();
 
 const parseWorkExperience = (sectionLines) => {
@@ -94,7 +94,7 @@ const parseWorkExperience = (sectionLines) => {
     if (!trimmed) continue;
 
     if (isBulletLine(trimmed)) {
-      if (!current) current = { heading: '', bullets: [] };
+      if (!current) current = { heading: "", bullets: [] };
       current.bullets.push(stripBulletPrefix(trimmed));
     } else {
       if (current) jobs.push(current);
@@ -106,24 +106,24 @@ const parseWorkExperience = (sectionLines) => {
   return jobs.map((j) => ({
     heading: j.heading,
     bullets: j.bullets,
-    bulletsText: j.bullets.join('\n'),
+    bulletsText: j.bullets.join("\n"),
   }));
 };
 
 const extractResumeFileName = (text) => {
   const m = text.match(/Resume\s+file\s+name:\s*\*?\*?([^\r\n*]+)\*?\*?/i);
-  return m ? m[1].trim() : '';
+  return m ? m[1] : "";
 };
 
 const stripResumeFileLine = (educationBlock) =>
-  educationBlock.replace(/\s*Resume\s+file\s+name:\s*[^\r\n]+/i, '').trim();
+  educationBlock.replace(/\s*Resume\s+file\s+name:\s*[^\r\n]+/i, "");
 
 /**
  * @param {string} text - full tailored resume text from the model
  * @returns {object}
  */
 export function parseTailoredResumeTextToJson(text) {
-  const full = String(text || '');
+  const full = String(text || "");
   const lines = full.split(/\r?\n/);
 
   const summaryIdx = findLineIndex(lines, /^summary(\s+|$)/i);
@@ -135,46 +135,65 @@ export function parseTailoredResumeTextToJson(text) {
   const preface = summaryIdx > 0 ? sliceSection(lines, 0, summaryIdx) : [];
   const prefaceNonEmpty = preface.map((l) => l.trim()).filter(Boolean);
 
-  let summaryText = '';
+  let summaryText = "";
   if (summaryIdx >= 0) {
     const first = lines[summaryIdx].trim();
     const m = first.match(/^summary\s*(.*)$/i);
-    const firstLineRest = m && m[1] ? m[1].trim() : '';
-    const end = impactIdx >= 0 ? impactIdx : techIdx >= 0 ? techIdx : workIdx >= 0 ? workIdx : lines.length;
+    const firstLineRest = m && m[1] ? m[1].trim() : "";
+    const end =
+      impactIdx >= 0
+        ? impactIdx
+        : techIdx >= 0
+          ? techIdx
+          : workIdx >= 0
+            ? workIdx
+            : lines.length;
     const summaryLines = sliceSection(lines, summaryIdx + 1, end);
-    summaryText = [firstLineRest, ...summaryLines].join('\n').trim();
+    summaryText = [firstLineRest, ...summaryLines].join("\n").trim();
   }
 
   const nextAfterImpact =
-    techIdx >= 0 ? techIdx : workIdx >= 0 ? workIdx : eduIdx >= 0 ? eduIdx : lines.length;
+    techIdx >= 0
+      ? techIdx
+      : workIdx >= 0
+        ? workIdx
+        : eduIdx >= 0
+          ? eduIdx
+          : lines.length;
   const impactLines =
     impactIdx >= 0 ? sliceSection(lines, impactIdx + 1, nextAfterImpact) : [];
 
   const nextAfterTech =
     workIdx >= 0 ? workIdx : eduIdx >= 0 ? eduIdx : lines.length;
-  const techLines = techIdx >= 0 ? sliceSection(lines, techIdx + 1, nextAfterTech) : [];
+  const techLines =
+    techIdx >= 0 ? sliceSection(lines, techIdx + 1, nextAfterTech) : [];
 
   const nextAfterWork = eduIdx >= 0 ? eduIdx : lines.length;
-  const workLines = workIdx >= 0 ? sliceSection(lines, workIdx + 1, nextAfterWork) : [];
+  const workLines =
+    workIdx >= 0 ? sliceSection(lines, workIdx + 1, nextAfterWork) : [];
 
-  let educationText = '';
+  let educationText = "";
   if (eduIdx >= 0) {
-    educationText = sliceSection(lines, eduIdx + 1, lines.length).join('\n').trim();
+    educationText = sliceSection(lines, eduIdx + 1, lines.length)
+      .join("\n")
+      .trim();
     educationText = stripResumeFileLine(educationText);
   }
 
-  const fullName = prefaceNonEmpty[0] || '';
-  const title = prefaceNonEmpty[1] || '';
-  const contactLine = prefaceNonEmpty[2] || '';
+  const fullName = prefaceNonEmpty[0] || "";
+  const title = prefaceNonEmpty[1] || "";
+  const contactLine = prefaceNonEmpty[2] || "";
   const additionalLinks = prefaceNonEmpty.slice(3);
 
   const workParsed = parseWorkExperience(workLines);
   /** Heading + bullets in one string per role. */
   const workExperienceStrings = workParsed.map((j) =>
-    [j.heading, j.bulletsText].filter(Boolean).join('\n')
+    [j.heading, j.bulletsText].filter(Boolean).join("\n"),
   );
   /** Only bullet blocks (matches a flat array of multi-line bullet strings). */
-  const workExperienceBulletsOnly = workParsed.map((j) => j.bulletsText).filter(Boolean);
+  const workExperienceBulletsOnly = workParsed
+    .map((j) => stripBulletPrefix(j.bulletsText))
+    .filter(Boolean);
 
   return {
     fullName,

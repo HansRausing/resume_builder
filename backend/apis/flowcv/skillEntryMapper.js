@@ -1,6 +1,5 @@
-import { FLOWCV_RESUME_ID } from "./flowcvCredentials.js";
 import { flowCvNowIso } from "./config.js";
-import { escapeFlowCvPlainText } from "./profileEntryMapper.js";
+import { FLOWCV_RESUME_ID } from "./flowcvCredentials.js";
 
 /**
  * All FlowCV skill slots (10). `skill` is the FlowCV row label used to match JSON keys.
@@ -75,15 +74,10 @@ function replaceBoldMarkers(s) {
 
 function coerceTechArray(rawVal) {
   if (Array.isArray(rawVal)) {
-    return rawVal
-      .map(replaceBoldMarkers)
-      .filter(Boolean);
+    return rawVal.map(replaceBoldMarkers).filter(Boolean);
   }
   if (typeof rawVal === "string") {
-    return rawVal
-      .split(",")
-      .map(replaceBoldMarkers)
-      .filter(Boolean);
+    return rawVal.split(",").map(replaceBoldMarkers).filter(Boolean);
   }
   return [];
 }
