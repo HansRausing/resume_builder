@@ -465,22 +465,27 @@ app.post("/api/flowcv/active-resume", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  initializeFlowCvSession()
-    .then((r) => {
-      if (r.ok) {
-        console.log(`[FlowCV] Session ready (${r.source})`);
-      } else {
-        console.log(
-          "[FlowCV] No session yet — use the app FlowCV sign-in, or start the server after a saved session exists on disk.",
-        );
-      }
-    })
-    .catch((err) =>
-      console.error(
-        "[FlowCV] Session init failed (will retry on first sync):",
-        err.message,
-      ),
-    );
-});
+/** Vercel runs this file as a serverless handler — no `listen()` (see `api/index.mjs`). */
+export default app;
+
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    initializeFlowCvSession()
+      .then((r) => {
+        if (r.ok) {
+          console.log(`[FlowCV] Session ready (${r.source})`);
+        } else {
+          console.log(
+            "[FlowCV] No session yet — use the app FlowCV sign-in, or start the server after a saved session exists on disk.",
+          );
+        }
+      })
+      .catch((err) =>
+        console.error(
+          "[FlowCV] Session init failed (will retry on first sync):",
+          err.message,
+        ),
+      );
+  });
+}
