@@ -21,7 +21,6 @@ const validateTailoredResumeJson = (json) => {
   if (isBlank(j.fullName)) return { ok: false, missing: "fullName" };
   if (isBlank(j.title)) return { ok: false, missing: "title" };
   if (isBlank(j.summary)) return { ok: false, missing: "summary" };
-  if (!hasNonEmptyObject(j.impact)) return { ok: false, missing: "impact" };
   if (!hasNonEmptyObject(j.coreTechnologies))
     return { ok: false, missing: "coreTechnologies" };
   if (!hasNonEmptyStringArray(j.workExperienceBulletsOnly))
