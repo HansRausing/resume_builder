@@ -160,10 +160,10 @@ OUTPUT FORMAT:
       const response = await axios.post(
         OPENAI_API_URL,
         {
-          model: "gpt-5-mini",
+          model: "gpt-4o-mini",
           messages: [{ role: "user", content: prompt + extra }],
           temperature: 0.7,
-          max_completion_tokens: 4000,
+          max_tokens: 4000,
         },
         {
           headers: {
