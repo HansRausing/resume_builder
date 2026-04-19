@@ -176,6 +176,7 @@ export function getFlowCvSessionInfo() {
  * Fetches GET resumes/all and stores resume id, personalDetails, and content for subsequent API calls.
  * @param {string} email
  * @param {string} password
+ * @returns {Promise<{ ok: true, email: string, resumeId: string } | { ok: false }>}
  */
 export async function loginFlowCvSession(email, password) {
   const e = String(email ?? '').trim();
@@ -183,7 +184,11 @@ export async function loginFlowCvSession(email, password) {
   if (!e || !p) {
     throw new Error('Email and password are required');
   }
-  const { cookie } = await flowCvLogin(e, p);
+  const loginResult = await flowCvLogin(e, p);
+  if (loginResult === false) {
+    return { ok: false };
+  }
+  const { cookie } = loginResult;
   memoryCookie = cookie;
   sessionEmail = e;
   memoryResumeId = '';

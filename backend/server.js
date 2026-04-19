@@ -369,7 +369,14 @@ app.post("/api/flowcv/login", async (req, res) => {
   try {
     const email = req.body?.email;
     const password = req.body?.password;
-    await loginFlowCvSession(email, password);
+    const loginOutcome = await loginFlowCvSession(email, password);
+    if (!loginOutcome.ok) {
+      return res.status(401).json({
+        ok: false,
+        error: "FlowCV login failed",
+        details: "Invalid email or password",
+      });
+    }
     const info = getFlowCvSessionInfo();
     res.json({
       ok: true,

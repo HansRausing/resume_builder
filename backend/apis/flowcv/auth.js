@@ -6,9 +6,10 @@ import { cookieHeaderFromSetCookie } from './cookies.js';
 
 /**
  * POST multipart login to FlowCV; returns session cookies for subsequent API calls.
+ * On invalid credentials FlowCV may respond with HTTP 2xx and JSON `{ success: false, ... }`.
  * @param {string} email
  * @param {string} password
- * @returns {Promise<{ cookie: string, data: unknown }>}
+ * @returns {Promise<{ cookie: string, data: unknown } | false>}
  */
 export async function flowCvLogin(email, password) {
   const form = new FormData();
@@ -27,7 +28,9 @@ export async function flowCvLogin(email, password) {
     validateStatus: () => true,
   });
 
-  if (res.status >= 400) {
+  const body = res.data;
+
+  if (res.status >= 400 || body && typeof body === 'object' && body.success === false) {
     const msg =
       res.data?.message ||
       res.data?.error ||
