@@ -65,7 +65,7 @@ CRITICAL RULES (STRICT):
 ALLOWED CHANGES (ONLY):
 A) Update the "Title" or "Summary" line to exactly match the job title.
 B) Update the SUMMARY only if necessary to mirror the role's core focus (max 3 lines).
-  - Keep 3 lines maximum
+  - Keep 3 lines maximuservem
   - Start with strongest value proposition
   - Use exact terminology from job description's "Requirements" section
   - Focus on business impact, not just responsibilities
@@ -81,6 +81,7 @@ D) WORK EXPERIENCE
    - And mention business or industry experience similar to the job description.
    - Implement the experiences about the skills and stacks that are mentioned in the job description
    - Focus on generate the experiences matched to requirements mentiond in the job description
+   - Please bold the matched part from the job description.
 E) BULLET POINT OPTIMIZATION
   - Add 5-8 missing, HIGH-VALUE keywords from the job description into:
    - Reorder bullets to place MOST RELEVANT experience first (don't change content, just add keywords relevant to experience, skills and features they want from job description)

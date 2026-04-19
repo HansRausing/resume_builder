@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./App.css";
 import { downloadPDF } from "./utils/downloadPdf";
 
@@ -11,6 +11,71 @@ function App() {
   const [resumeFileName, setResumeFileName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [flowCvEmail, setFlowCvEmail] = useState("");
+  const [flowCvPassword, setFlowCvPassword] = useState("");
+  const [flowCvConnected, setFlowCvConnected] = useState(false);
+  const [flowCvSessionEmail, setFlowCvSessionEmail] = useState("");
+  const [flowCvResumeId, setFlowCvResumeId] = useState("");
+  const [flowCvAuthLoading, setFlowCvAuthLoading] = useState(false);
+  const [flowCvAuthError, setFlowCvAuthError] = useState("");
+
+  const loadFlowCvSessionStatus = useCallback(async () => {
+    try {
+      const { data } = await axios.get("/api/flowcv/session");
+      setFlowCvConnected(Boolean(data?.connected));
+      setFlowCvSessionEmail(data?.email || "");
+      setFlowCvResumeId(data?.resumeId || "");
+    } catch {
+      setFlowCvConnected(false);
+      setFlowCvSessionEmail("");
+      setFlowCvResumeId("");
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFlowCvSessionStatus();
+  }, [loadFlowCvSessionStatus]);
+
+  const handleFlowCvLogin = async () => {
+    if (!flowCvEmail.trim() || !flowCvPassword) {
+      setFlowCvAuthError("Enter the email and password you use on app.flowcv.com");
+      return;
+    }
+    setFlowCvAuthLoading(true);
+    setFlowCvAuthError("");
+    try {
+      await axios.post("/api/flowcv/login", {
+        email: flowCvEmail.trim(),
+        password: flowCvPassword,
+      });
+      setFlowCvPassword("");
+      await loadFlowCvSessionStatus();
+    } catch (err) {
+      setFlowCvAuthError(
+        err.response?.data?.details ||
+          err.response?.data?.error ||
+          "FlowCV sign-in failed",
+      );
+    } finally {
+      setFlowCvAuthLoading(false);
+    }
+  };
+
+  const handleFlowCvLogout = async () => {
+    setFlowCvAuthLoading(true);
+    setFlowCvAuthError("");
+    try {
+      await axios.post("/api/flowcv/logout");
+      await loadFlowCvSessionStatus();
+    } catch (err) {
+      setFlowCvAuthError(
+        err.response?.data?.error || "Could not sign out of FlowCV",
+      );
+    } finally {
+      setFlowCvAuthLoading(false);
+    }
+  };
 
   // Convert **text** to HTML bold tags
   const formatResumeWithBold = (text) => {
@@ -127,6 +192,82 @@ function App() {
         </header>
 
         <div className="input-section">
+          <div className="flowcv-auth-card">
+            <h2 className="flowcv-auth-title">FlowCV account</h2>
+            <p className="flowcv-auth-intro">
+              Sign in with the same email and password as{" "}
+              <a
+                href="https://app.flowcv.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                app.flowcv.com
+              </a>{" "}
+              so tailored resumes can sync and export as PDF. Your password is
+              sent to this app&apos;s server only to obtain a FlowCV session cookie;
+              it is not stored on disk.
+            </p>
+            <div
+              className={`flowcv-status ${flowCvConnected ? "flowcv-status--ok" : "flowcv-status--off"}`}
+            >
+              {flowCvConnected
+                ? `Connected${flowCvSessionEmail ? ` as ${flowCvSessionEmail}` : ""}${flowCvResumeId ? ` · Resume ${flowCvResumeId}` : ""}`
+                : "Not connected — PDF sync and download need a FlowCV session"}
+            </div>
+            {flowCvAuthError && (
+              <div className="flowcv-auth-error">{flowCvAuthError}</div>
+            )}
+            {!flowCvConnected ? (
+              <>
+                <div className="input-group flowcv-auth-fields">
+                  <label htmlFor="flowCvEmail">
+                    <span className="label-text">FlowCV email</span>
+                  </label>
+                  <input
+                    id="flowCvEmail"
+                    type="email"
+                    autoComplete="username"
+                    className="input-field"
+                    value={flowCvEmail}
+                    onChange={(e) => setFlowCvEmail(e.target.value)}
+                    placeholder="you@example.com"
+                  />
+                </div>
+                <div className="input-group flowcv-auth-fields">
+                  <label htmlFor="flowCvPassword">
+                    <span className="label-text">FlowCV password</span>
+                  </label>
+                  <input
+                    id="flowCvPassword"
+                    type="password"
+                    autoComplete="current-password"
+                    className="input-field"
+                    value={flowCvPassword}
+                    onChange={(e) => setFlowCvPassword(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-flowcv"
+                  disabled={flowCvAuthLoading}
+                  onClick={handleFlowCvLogin}
+                >
+                  {flowCvAuthLoading ? "Signing in…" : "Sign in to FlowCV"}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={flowCvAuthLoading}
+                onClick={handleFlowCvLogout}
+              >
+                {flowCvAuthLoading ? "…" : "Sign out of FlowCV"}
+              </button>
+            )}
+          </div>
+
           <div className="input-group">
             <label htmlFor="apiKey">
               <span className="label-text">OpenAI API Key</span>

@@ -1,8 +1,11 @@
 /**
  * FlowCV `personalDetails` for save_personal_details.
- * All fields are fixed to match your FlowCV account except `jobTitle`, which comes from
- * `tailoredResumeJson.title` (markdown ** stripped).
+ * Base shape comes from the active resume's `personalDetails` (GET resumes/all),
+ * stored in the server session. Only `jobTitle` is overridden from `tailoredResumeJson.title`
+ * (markdown ** stripped).
  */
+
+import { getFlowCvPersonalDetailsTemplate } from './session.js';
 
 export function stripBoldMarkers(text) {
   return String(text || '')
@@ -10,55 +13,25 @@ export function stripBoldMarkers(text) {
     .trim();
 }
 
-/** Fixed payload — only `jobTitle` is overridden per tailor result. */
-export const FLOWCV_PERSONAL_DETAILS_FIXED = {
-  phone: '+1 (346) 771-6340',
-  photo: {},
-  social: {
-    linkedIn: {
-      link: 'https://linkedin.com/in/santoli-connected',
-      display: 'linkedin.com/in/santoli-connected',
+/** Minimal shape if resumes/all snapshot is not available yet. */
+function emptyPersonalDetailsShape() {
+  return {
+    phone: '',
+    photo: {},
+    social: {
+      linkedIn: {
+        link: '',
+        display: '',
+      },
     },
-  },
-  address: 'The Woodlands, Texas',
-  fullName: 'ANDREW SANTOLI',
-  jobTitle: '',
-  usAddress: false,
-  detailsOrder: ['displayEmail', 'phone', 'address', 'linkedIn'],
-  displayEmail: 'santoli.andrew@gmail.com',
-  showPlaceholder: false,
-};
-
-/**
- * Split a typical "email • phone • location" contact line (exported for reuse/tests).
- * @param {string} contactLine
- */
-export function parseContactLine(contactLine) {
-  const raw = String(contactLine || '').trim();
-  if (!raw) {
-    return { displayEmail: '', phone: '', address: '' };
-  }
-
-  const parts = raw
-    .split(/•|·|｜/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-
-  let displayEmail = '';
-  let phone = '';
-  let address = '';
-
-  for (const p of parts) {
-    if (p.includes('@')) {
-      displayEmail = p;
-    } else if (/\d/.test(p) && /[+\d()\-\s]{7,}/.test(p)) {
-      phone = p;
-    } else if (!address) {
-      address = p;
-    }
-  }
-
-  return { displayEmail, phone, address };
+    address: '',
+    fullName: '',
+    jobTitle: '',
+    usAddress: false,
+    detailsOrder: ['displayEmail', 'phone', 'address', 'linkedIn'],
+    displayEmail: '',
+    showPlaceholder: false,
+  };
 }
 
 /**
@@ -68,12 +41,23 @@ export function tailoredResumeJsonToFlowCvPersonalDetails(tailoredResumeJson) {
   const json = tailoredResumeJson && typeof tailoredResumeJson === 'object' ? tailoredResumeJson : {};
   const title = /** @type {string} */ (json.title || '');
 
-  return {
-    ...FLOWCV_PERSONAL_DETAILS_FIXED,
-    social: {
-      linkedIn: { ...FLOWCV_PERSONAL_DETAILS_FIXED.social.linkedIn },
-    },
-    detailsOrder: [...FLOWCV_PERSONAL_DETAILS_FIXED.detailsOrder],
-    jobTitle: stripBoldMarkers(title),
-  };
+  const base = getFlowCvPersonalDetailsTemplate() || emptyPersonalDetailsShape();
+  const out = JSON.parse(JSON.stringify(base));
+
+  out.jobTitle = stripBoldMarkers(title);
+
+  if (!out.social) out.social = {};
+  if (!out.social.linkedIn) {
+    out.social.linkedIn = { link: '', display: '' };
+  } else {
+    out.social.linkedIn = { ...out.social.linkedIn };
+  }
+
+  if (!Array.isArray(out.detailsOrder)) {
+    out.detailsOrder = ['displayEmail', 'phone', 'address', 'linkedIn'];
+  } else {
+    out.detailsOrder = [...out.detailsOrder];
+  }
+
+  return out;
 }

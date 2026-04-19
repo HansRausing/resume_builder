@@ -1,7 +1,10 @@
-import { ensureFlowCvSession, getFlowCvCookie } from '../../backend/apis/flowcv/session.js'
+import {
+  ensureFlowCvSession,
+  getFlowCvActiveResumeId,
+  getFlowCvCookie,
+} from '../../backend/apis/flowcv/session.js'
 import { with401Retry } from '../../backend/apis/flowcv/flowCvWith401Retry.js'
 import { downloadFlowCvResumePdf } from '../../backend/apis/flowcv/downloadResumePdf.js'
-import { FLOWCV_RESUME_ID } from '../../backend/apis/flowcv/flowcvCredentials.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -16,7 +19,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'FlowCV session is not initialized' })
     }
 
-    const resumeId = String(req.query.resumeId || FLOWCV_RESUME_ID || '').trim()
+    const resumeId = String(req.query.resumeId || getFlowCvActiveResumeId() || '').trim()
     const previewPageCountRaw = req.query.previewPageCount ?? 2
     const previewPageCount = Number(previewPageCountRaw)
     const filename = String(req.query.filename || 'flowcv-resume.pdf').trim() || 'flowcv-resume.pdf'

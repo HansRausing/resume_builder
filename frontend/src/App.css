@@ -44,6 +44,79 @@
   padding: 40px;
 }
 
+.flowcv-auth-card {
+  margin-bottom: 36px;
+  padding: 28px;
+  border-radius: 14px;
+  border: 2px solid #e8eaf6;
+  background: linear-gradient(180deg, #fafbff 0%, #f4f6fc 100%);
+}
+
+.flowcv-auth-title {
+  margin: 0 0 10px;
+  font-size: 1.35rem;
+  color: #2c3e50;
+}
+
+.flowcv-auth-intro {
+  margin: 0 0 16px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #5d6d7e;
+}
+
+.flowcv-auth-intro a {
+  color: #5b6fd8;
+  font-weight: 600;
+}
+
+.flowcv-status {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.flowcv-status--ok {
+  background: #e8f8ef;
+  color: #1e8449;
+  border: 1px solid #a9dfbf;
+}
+
+.flowcv-status--off {
+  background: #fef9e7;
+  color: #9a7d0a;
+  border: 1px solid #f9e79f;
+}
+
+.flowcv-auth-error {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fdedec;
+  border-left: 4px solid #e74c3c;
+  color: #922b21;
+  font-size: 0.9rem;
+}
+
+.flowcv-auth-fields {
+  margin-bottom: 18px;
+}
+
+.btn-flowcv {
+  background: linear-gradient(135deg, #5b6fd8 0%, #4a5fc4 100%);
+  color: white;
+  width: 100%;
+  max-width: 320px;
+}
+
+.btn-flowcv:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(91, 111, 216, 0.35);
+}
+
 .input-group {
   margin-bottom: 30px;
 }

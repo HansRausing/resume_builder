@@ -12,10 +12,3 @@ export function flowCvNowIso() {
   return new Date().toISOString();
 }
 
-/**
- * Target resume in FlowCV (UUID). Set FLOWCV_RESUME_ID in the environment.
- * Do not commit real IDs or credentials to the repo.
- */
-export function getFlowCvResumeId() {
-  return (typeof process !== 'undefined' && process.env.FLOWCV_RESUME_ID?.trim()) || '';
-}

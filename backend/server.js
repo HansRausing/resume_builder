@@ -6,12 +6,18 @@ import { parseTailoredResumeTextToJson } from "./resumeTextToJson.js";
 import { syncFlowCvPersonalDetailsAfterTailor } from "./apis/flowcv/syncPersonalDetails.js";
 import {
   ensureFlowCvSession,
+  getFlowCvActiveResumeId,
   getFlowCvCookie,
+  getFlowCvSessionInfo,
   initializeFlowCvSession,
+  loginFlowCvSession,
+  logoutFlowCvSession,
+  setFlowCvActiveResumeId,
+  syncActiveResumeFromFlowCvApi,
 } from "./apis/flowcv/session.js";
 import { with401Retry } from "./apis/flowcv/flowCvWith401Retry.js";
 import { downloadFlowCvResumePdf } from "./apis/flowcv/downloadResumePdf.js";
-import { FLOWCV_RESUME_ID } from "./apis/flowcv/flowcvCredentials.js";
+import { fetchFlowCvResumesAll } from "./apis/flowcv/fetchResumesAll.js";
 
 dotenv.config();
 
@@ -98,6 +104,7 @@ D) WORK EXPERIENCE
    - And mention business or industry experience similar to the job description.
    - Implement the experiences about the skills and stacks that are mentioned in the job description
    - Focus on generate the experiences matched to requirements mentiond in the job description
+   - Please bold the matched part from the job description.
 E) BULLET POINT OPTIMIZATION
   - Add 5-8 missing, HIGH-VALUE keywords from the job description into:
    - Reorder bullets to place MOST RELEVANT experience first (don't change content, just add keywords relevant to experience, skills and features they want from job description)
@@ -222,15 +229,6 @@ OUTPUT FORMAT:
   }
 });
 
-// PDF generation is now handled client-side with jsPDF
-// This endpoint is kept for backward compatibility but is no longer used
-app.post("/api/generate-pdf", async (req, res) => {
-  res.status(200).json({
-    message: "PDF generation is now handled client-side",
-    deprecated: true,
-  });
-});
-
 /**
  * Proxy FlowCV resume download (browser-safe).
  * Uses server-side FlowCV session cookie and streams PDF bytes.
@@ -246,7 +244,7 @@ app.get("/api/flowcv/download-pdf", async (req, res) => {
     }
 
     const resumeId = String(
-      req.query.resumeId || FLOWCV_RESUME_ID || "",
+      req.query.resumeId || getFlowCvActiveResumeId() || "",
     ).trim();
     const previewPageCountRaw = req.query.previewPageCount ?? 2;
     const previewPageCount = Number(previewPageCountRaw);
@@ -285,14 +283,193 @@ app.get("/api/flowcv/download-pdf", async (req, res) => {
   }
 });
 
+/**
+ * Proxy FlowCV GET resumes/all (session cookie).
+ * - No query: same JSON as app.flowcv.com (full list under body.data.resumes).
+ * - ?resumeIndex=n (0-based, same as body.data.resumes[n]): one resume only, smaller payload.
+ */
+app.get("/api/flowcv/resumes/all", async (req, res) => {
+  try {
+    await ensureFlowCvSession();
+    const cookie = getFlowCvCookie();
+    if (!cookie) {
+      return res
+        .status(401)
+        .json({ error: "FlowCV session is not initialized" });
+    }
+
+    const data = await with401Retry(async (c) => {
+      return await fetchFlowCvResumesAll({ cookie: c });
+    });
+
+    const rawIdx = req.query.resumeIndex ?? req.query.index;
+    if (rawIdx !== undefined && String(rawIdx).trim() !== "") {
+      const idx = Number(rawIdx);
+      if (!Number.isFinite(idx) || !Number.isInteger(idx) || idx < 0) {
+        return res.status(400).json({
+          error: "Invalid resumeIndex",
+          details:
+            "Use a non-negative integer index into data.resumes (0 = first resume, 1 = second, …).",
+        });
+      }
+      const resumes = data?.data?.resumes;
+      if (!Array.isArray(resumes)) {
+        return res.status(502).json({
+          error: "Unexpected FlowCV response",
+          details: "Missing data.resumes array on upstream payload.",
+        });
+      }
+      if (idx >= resumes.length) {
+        return res.status(404).json({
+          error: "resumeIndex out of range",
+          resumeIndex: idx,
+          count: resumes.length,
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        code: 200,
+        resumeIndex: idx,
+        count: resumes.length,
+        resume: resumes[idx],
+      });
+    }
+
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error("[FlowCV] resumes/all error:", error?.message || error);
+    const status = error?.statusCode >= 400 ? error.statusCode : 500;
+    return res.status(status).json({
+      error: "Failed to fetch FlowCV resumes",
+      details: error?.message || String(error),
+    });
+  }
+});
+
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+/** FlowCV: report whether a server-side session cookie exists (no secrets). */
+app.get("/api/flowcv/session", (req, res) => {
+  try {
+    const info = getFlowCvSessionInfo();
+    res.json({
+      connected: info.connected,
+      email: info.email || undefined,
+      resumeId: info.resumeId || undefined,
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+
+/** FlowCV: sign in with the same credentials as app.flowcv.com (stores session server-side). */
+app.post("/api/flowcv/login", async (req, res) => {
+  try {
+    const email = req.body?.email;
+    const password = req.body?.password;
+    await loginFlowCvSession(email, password);
+    const info = getFlowCvSessionInfo();
+    res.json({
+      ok: true,
+      email: info.email,
+      resumeId: info.resumeId || undefined,
+    });
+  } catch (error) {
+    console.error("[FlowCV] login error:", error?.message || error);
+    res.status(401).json({
+      error: "FlowCV login failed",
+      details: error?.message || String(error),
+    });
+  }
+});
+
+app.post("/api/flowcv/logout", (req, res) => {
+  try {
+    logoutFlowCvSession();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+
+/**
+ * Set which FlowCV resume id save/download/sync use (must exist under resumes/all).
+ * Body: { "resumeId": "uuid" } or { "resumeIndex": 0 } (0-based).
+ */
+app.post("/api/flowcv/active-resume", async (req, res) => {
+  try {
+    await ensureFlowCvSession();
+    if (!getFlowCvCookie()) {
+      return res
+        .status(401)
+        .json({ error: "FlowCV session is not initialized" });
+    }
+
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const directId = String(body.resumeId ?? "").trim();
+    if (directId) {
+      setFlowCvActiveResumeId(directId);
+      await syncActiveResumeFromFlowCvApi();
+      return res.json({ ok: true, resumeId: getFlowCvActiveResumeId() });
+    }
+
+    const rawIdx = body.resumeIndex;
+    if (rawIdx === undefined || rawIdx === null || String(rawIdx).trim() === "") {
+      return res.status(400).json({
+        error: "Provide resumeId or resumeIndex",
+      });
+    }
+
+    const idx = Number(rawIdx);
+    if (!Number.isFinite(idx) || !Number.isInteger(idx) || idx < 0) {
+      return res.status(400).json({ error: "Invalid resumeIndex" });
+    }
+
+    const data = await with401Retry(async (c) => {
+      return await fetchFlowCvResumesAll({ cookie: c });
+    });
+    const resumes = data?.data?.resumes;
+    if (!Array.isArray(resumes) || idx >= resumes.length) {
+      return res.status(404).json({
+        error: "resumeIndex out of range",
+        resumeIndex: idx,
+        count: Array.isArray(resumes) ? resumes.length : 0,
+      });
+    }
+    const picked = String(resumes[idx]?.id || "").trim();
+    if (!picked) {
+      return res.status(404).json({ error: "Resume at index has no id" });
+    }
+    setFlowCvActiveResumeId(picked);
+    await syncActiveResumeFromFlowCvApi();
+    return res.json({
+      ok: true,
+      resumeId: getFlowCvActiveResumeId(),
+      resumeIndex: idx,
+    });
+  } catch (error) {
+    console.error("[FlowCV] active-resume error:", error?.message || error);
+    return res.status(500).json({
+      error: "Failed to set active resume",
+      details: error?.message || String(error),
+    });
+  }
 });
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   initializeFlowCvSession()
-    .then((r) => console.log(`[FlowCV] Session ready (${r.source})`))
+    .then((r) => {
+      if (r.ok) {
+        console.log(`[FlowCV] Session ready (${r.source})`);
+      } else {
+        console.log(
+          "[FlowCV] No session yet — use the app FlowCV sign-in, or start the server after a saved session exists on disk.",
+        );
+      }
+    })
     .catch((err) =>
       console.error(
         "[FlowCV] Session init failed (will retry on first sync):",

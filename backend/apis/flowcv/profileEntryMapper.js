@@ -1,13 +1,27 @@
-import { FLOWCV_RESUME_ID } from './flowcvCredentials.js';
+import { getFlowCvActiveResumeId, getFlowCvResumeContent } from './session.js';
 import { flowCvNowIso } from './config.js';
 
-/** Fixed FlowCV profile entry row (`text` + `updatedAt` set per request). */
-export const FLOWCV_PROFILE_ENTRY_FIXED = {
-  id: '8d933d7f-e091-4c43-9dac-5e96f189f66b',
-  isHidden: false,
-  createdAt: '2026-04-03T17:35:42.009Z',
-  showPlaceholder: false,
-};
+/**
+ * Profile row shell from `resume.content.profile.entries[0]` (resumes/all).
+ */
+function getProfileEntryShell() {
+  const content = getFlowCvResumeContent();
+  const entry0 = content?.profile?.entries?.[0];
+  if (!entry0 || typeof entry0 !== 'object') {
+    return {
+      id: '',
+      isHidden: false,
+      createdAt: '',
+      showPlaceholder: false,
+    };
+  }
+  return {
+    id: String(entry0.id || ''),
+    isHidden: Boolean(entry0.isHidden),
+    createdAt: String(entry0.createdAt || ''),
+    showPlaceholder: Boolean(entry0.showPlaceholder),
+  };
+}
 
 export function escapeFlowCvPlainText(s) {
   return String(s || '')
@@ -52,10 +66,10 @@ export function tailoredResumeJsonToFlowCvProfileSaveBody(tailoredResumeJson) {
   const summary = /** @type {string} */ (json.summary || '');
 
   return {
-    resumeId: FLOWCV_RESUME_ID,
+    resumeId: getFlowCvActiveResumeId(),
     sectionId: 'profile',
     entry: {
-      ...FLOWCV_PROFILE_ENTRY_FIXED,
+      ...getProfileEntryShell(),
       text: summaryToFlowCvHtml(summary),
       updatedAt: flowCvNowIso(),
     },

@@ -1,28 +1,22 @@
 import { flowCvNowIso } from "./config.js";
-import { FLOWCV_RESUME_ID } from "./flowcvCredentials.js";
+import { getFlowCvActiveResumeId, getFlowCvResumeContent } from "./session.js";
 import { descriptionToFlowCvHtml } from "./profileEntryMapper.js";
 
 /**
- * One FlowCV `custom1` row per impact line: fixed id + createdAt (`updatedAt` set per request).
+ * Impact row metas from `resume.content.custom1.entries` (id + createdAt per row).
+ * @returns {{ id: string, createdAt: string }[]}
  */
-export const FLOWCV_IMPACT_ROW_METAS = [
-  {
-    id: "a13ea7fe-2f0b-4c44-b40b-85c48ce63548",
-    createdAt: "2026-04-03T07:04:11.864Z",
-  },
-  {
-    id: "b4c94bd5-bcf6-4eb4-9b8a-ad9b976a42dc",
-    createdAt: "2026-04-03T07:04:11.864Z",
-  },
-  {
-    id: "92fd339b-b2d2-4a24-9ce1-cf0bac9e5051",
-    createdAt: "2026-04-03T07:04:11.864Z",
-  },
-  {
-    id: "babddedf-df61-4ada-97f5-30fdd7354381",
-    createdAt: "2026-04-03T07:04:11.864Z",
-  },
-];
+function getImpactRowMetas() {
+  const content = getFlowCvResumeContent();
+  const entries = content?.custom1?.entries;
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((e) => ({
+      id: String(e?.id || ""),
+      createdAt: String(e?.createdAt || ""),
+    }))
+    .filter((m) => m.id);
+}
 
 const IMPACT_SHELL = {
   isHidden: false,
@@ -35,7 +29,7 @@ const IMPACT_SHELL = {
 };
 
 /**
- * Builds up to four PATCH bodies for `sectionId: "custom1"` from `tailoredResumeJson.impact`.
+ * Builds PATCH bodies for `sectionId: "custom1"` from `tailoredResumeJson.impact`.
  * Each object key → `entry.title`, value → `entry.description` (HTML).
  *
  * @param {Record<string, unknown>} tailoredResumeJson
@@ -49,15 +43,16 @@ export function tailoredResumeJsonToFlowCvImpactSaveBodies(tailoredResumeJson) {
   const impact = json.impact;
   if (!impact || typeof impact !== "object") return [];
 
+  const metas = getImpactRowMetas();
   const pairs = Object.entries(/** @type {Record<string, string>} */ (impact));
-  const max = Math.min(pairs.length, FLOWCV_IMPACT_ROW_METAS.length);
+  const max = Math.min(pairs.length, metas.length);
   const bodies = [];
 
   for (let i = 0; i < max; i++) {
     const [title, descriptionText] = pairs[i];
-    const meta = FLOWCV_IMPACT_ROW_METAS[i];
+    const meta = metas[i];
     bodies.push({
-      resumeId: FLOWCV_RESUME_ID,
+      resumeId: getFlowCvActiveResumeId(),
       sectionId: "custom1",
       entry: {
         id: meta.id,

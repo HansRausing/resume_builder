@@ -1,4 +1,3 @@
-import { FLOWCV_RESUME_ID } from './flowcvCredentials.js';
 import { tailoredResumeJsonToFlowCvPersonalDetails } from './personalDetailsMapper.js';
 import { tailoredResumeJsonToFlowCvProfileSaveBody } from './profileEntryMapper.js';
 import { tailoredResumeJsonToFlowCvImpactSaveBodies } from './impactEntryMapper.js';
@@ -7,7 +6,12 @@ import { tailoredResumeJsonToFlowCvWorkSaveBodies } from './workEntryMapper.js';
 import { saveFlowCvPersonalDetails } from './savePersonalDetails.js';
 import { saveFlowCvEntry } from './saveEntry.js';
 import { with401Retry } from './flowCvWith401Retry.js';
-import { ensureFlowCvSession, getFlowCvCookie } from './session.js';
+import {
+  ensureFlowCvPersonalDetailsTemplate,
+  ensureFlowCvSession,
+  getFlowCvActiveResumeId,
+  getFlowCvCookie,
+} from './session.js';
 import { downloadFlowCvResumePdf } from './downloadResumePdf.js';
 
 /**
@@ -25,11 +29,20 @@ export async function syncFlowCvPersonalDetailsAfterTailor(tailoredResumeJson) {
       throw new Error('No FlowCV session cookie (login at startup did not succeed)');
     }
 
+    await ensureFlowCvPersonalDetailsTemplate();
+
+    const resumeId = getFlowCvActiveResumeId();
+    if (!resumeId) {
+      throw new Error(
+        'No FlowCV resume id. Sign in to FlowCV (loads resumes/all) or set the active resume via POST /api/flowcv/active-resume.',
+      );
+    }
+
     const personalDetails = tailoredResumeJsonToFlowCvPersonalDetails(tailoredResumeJson);
     const profileBody = tailoredResumeJsonToFlowCvProfileSaveBody(tailoredResumeJson);
 
     await with401Retry(async (c) => {
-      await saveFlowCvPersonalDetails({ resumeId: FLOWCV_RESUME_ID, personalDetails, cookie: c });
+      await saveFlowCvPersonalDetails({ resumeId, personalDetails, cookie: c });
     });
 
     await with401Retry(async (c) => {
@@ -79,7 +92,7 @@ export async function syncFlowCvPersonalDetailsAfterTailor(tailoredResumeJson) {
 
     const pdf = await with401Retry(async (c) => {
       const r = await downloadFlowCvResumePdf({
-        resumeId: FLOWCV_RESUME_ID,
+        resumeId,
         previewPageCount: 2,
         cookie: c,
       });
