@@ -81,7 +81,7 @@ const isBulletLine = (line) => /^\s*[•\-\*]/.test(line);
 const stripBulletPrefix = (line) =>
   String(line || "")
     .trim()
-    .replace(/^\s*[•\-\*]\s+/, "")
+    .replace(/^\s*[•\-\*]\s*/, "")
     .trim();
 
 const parseWorkExperience = (sectionLines) => {
