@@ -28,10 +28,22 @@ import { fetchFlowCvResumesAll } from "./apis/flowcv/fetchResumesAll.js";
 
 dotenv.config();
 
+/** Query values may be `string[]` behind some proxies (e.g. Vercel). */
+function firstQueryParam(v) {
+  if (v == null) return "";
+  if (Array.isArray(v)) return String(v[0] ?? "").trim();
+  return String(v).trim();
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  }),
+);
 app.use(express.json({ limit: "50mb" }));
 
 app.use((req, res, next) => {
@@ -258,9 +270,12 @@ app.get("/api/flowcv/download-pdf", async (req, res) => {
     }
 
     const resumeId = String(
-      req.query.resumeId || getFlowCvActiveResumeId() || "",
+      firstQueryParam(req.query?.resumeId) ||
+        getFlowCvActiveResumeId() ||
+        "",
     ).trim();
-    const previewPageCountRaw = req.query.previewPageCount ?? 2;
+    const previewPageCountRaw =
+      firstQueryParam(req.query?.previewPageCount) || "2";
     const previewPageCount = Number(previewPageCountRaw);
 
     if (!resumeId) {
@@ -278,22 +293,23 @@ app.get("/api/flowcv/download-pdf", async (req, res) => {
     });
 
     const filename =
-      String(req.query.filename || "flowcv-resume.pdf") ||
-      "flowcv-resume.pdf";
+      firstQueryParam(req.query?.filename) || "flowcv-resume.pdf";
     res.setHeader("Content-Type", pdf.contentType || "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${filename.replace(/"/g, "")}"`,
     );
-    return res.status(200).send(pdf.buffer);
+    res.status(200);
+    return res.end(pdf.buffer);
   } catch (error) {
     console.error("[FlowCV] download-pdf error:", error?.message || error);
-    return res
-      .status(500)
-      .json({
-        error: "Failed to download FlowCV PDF",
-        details: error?.message || String(error),
-      });
+    const upstream = Number(error?.statusCode);
+    const status =
+      upstream >= 400 && upstream < 600 ? upstream : 500;
+    return res.status(status).json({
+      error: "Failed to download FlowCV PDF",
+      details: error?.message || String(error),
+    });
   }
 });
 

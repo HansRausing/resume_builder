@@ -25,10 +25,24 @@ export async function downloadFlowCvResumePdf({ resumeId, previewPageCount = 2, 
   });
 
   if (res.status >= 400) {
-    const msg =
+    let msg =
       res.data?.message ||
       res.data?.error ||
       `FlowCV download failed (HTTP ${res.status})`;
+    if (res.data && (ArrayBuffer.isView(res.data) || res.data instanceof ArrayBuffer)) {
+      const buf = Buffer.from(res.data);
+      const text = buf.toString('utf8', 0, Math.min(buf.length, 1200)).trim();
+      if (text.startsWith('{')) {
+        try {
+          const j = JSON.parse(text);
+          if (j.message || j.error) msg = String(j.message || j.error);
+        } catch {
+          /* keep msg */
+        }
+      } else if (text) {
+        msg = text.slice(0, 500) || msg;
+      }
+    }
     const err = new Error(msg);
     err.statusCode = res.status;
     throw err;
