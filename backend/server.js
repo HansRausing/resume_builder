@@ -212,7 +212,7 @@ OUTPUT FORMAT:
           model: "gpt-5.2",
           messages: [{ role: "user", content: prompt + extra }],
           temperature: 0.7,
-          max_tokens: 4000,
+          max_completion_tokens: 4000,
         },
         {
           headers: {
