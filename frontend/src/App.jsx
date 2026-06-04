@@ -6,7 +6,6 @@ import { downloadPDF } from "./utils/downloadPdf";
 function App() {
   const [currentResume, setCurrentResume] = useState("");
   const [jobDescription, setJobDescription] = useState("");
-  const [apiKey, setApiKey] = useState("");
   const [tailoredResume, setTailoredResume] = useState("");
   const [resumeFileName, setResumeFileName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -174,31 +173,22 @@ function App() {
     [flowCvResumeId],
   );
 
-  const handleTailorResume = async () => {
-    if (!currentResume.trim() || !jobDescription.trim()) {
-      setError(
-        "Please provide both your current resume and the job description",
-      );
-      return;
-    }
-
-    if (!apiKey.trim()) {
-      setError("Please provide your OpenAI API key");
+  const handleSyncResume = async () => {
+    if (!currentResume.trim()) {
+      setError("Please provide your resume text");
       return;
     }
 
     setLoading(true);
     setError("");
-    setTailoredResume("");
+    setTailoredResume(currentResume);
     setResumeFileName("");
 
     try {
       const response = await axios.post(
-        "/api/tailor-resume",
+        "/api/sync-resume",
         {
           currentResume,
-          jobDescription,
-          apiKey,
         },
         { withCredentials: true },
       );
@@ -218,11 +208,11 @@ function App() {
         try {
           await downloadFlowCvPdfFromApi(nameHint);
         } catch (dlErr) {
-          console.error("FlowCV PDF after tailor:", dlErr);
+          console.error("FlowCV PDF after sync:", dlErr);
           setError(
             dlErr.response?.data?.details ||
               dlErr.response?.data?.error ||
-              "Resume was tailored but the PDF could not be downloaded. Use the Download PDF button to try again.",
+              "Resume was synced but the PDF could not be downloaded. Use the Download PDF button to try again.",
           );
         }
       }
@@ -230,7 +220,7 @@ function App() {
       setError(
         err.response?.data?.details ||
           err.response?.data?.error ||
-          "Failed to generate tailored resume",
+          "Failed to sync resume to FlowCV",
       );
     } finally {
       setLoading(false);
@@ -257,13 +247,12 @@ function App() {
     <div className="app">
       <div className="container">
         <header className="header">
-          <h1>🎯 AI Resume Tailor</h1>
+          <h1>🎯 Resume Sync</h1>
           <p>
-            Minimal-change, high-signal resume optimization powered by OpenAI
-            GPT-4
+            Sync your resume directly to FlowCV and download as PDF
           </p>
           <p className="header-subtitle">
-            Maximize recruiter callbacks while preserving your achievements
+            Sign in to FlowCV, paste your resume, and click Sync
           </p>
         </header>
 
@@ -345,24 +334,6 @@ function App() {
           </div>
 
           <div className="input-group">
-            <label htmlFor="apiKey">
-              <span className="label-text">OpenAI API Key</span>
-              <span className="label-hint">
-                Get your API key from platform.openai.com/api-keys (changes will
-                be shown in bold)
-              </span>
-            </label>
-            <input
-              id="apiKey"
-              type="password"
-              placeholder="sk-proj-..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="input-field"
-            />
-          </div>
-
-          <div className="input-group">
             <label htmlFor="currentResume">
               <span className="label-text">Your Master Resume</span>
               <span className="label-hint">
@@ -381,9 +352,9 @@ function App() {
 
           <div className="input-group">
             <label htmlFor="jobDescription">
-              <span className="label-text">Job Description</span>
+              <span className="label-text">Job Description (Optional)</span>
               <span className="label-hint">
-                Paste the job description you're applying for
+                Paste the job description you're applying for (for reference only)
               </span>
             </label>
             <textarea
@@ -397,11 +368,11 @@ function App() {
           </div>
 
           <button
-            onClick={handleTailorResume}
+            onClick={handleSyncResume}
             disabled={loading}
             className="btn btn-primary"
           >
-            {loading ? "⏳ Generating..." : "✨ Tailor My Resume"}
+            {loading ? "⏳ Syncing to FlowCV..." : "✨ Sync to FlowCV"}
           </button>
         </div>
 
@@ -414,10 +385,10 @@ function App() {
         {tailoredResume && (
           <div className="result-section">
             <div className="result-header">
-              <h2>📄 Your Tailored Resume</h2>
+              <h2>📄 Your Resume</h2>
               <div className="result-info">
                 <span className="info-badge">
-                  ✨ Changes highlighted in bold with yellow background
+                  ✨ Synced to FlowCV
                 </span>
               </div>
               <div className="result-actions">
