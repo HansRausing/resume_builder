@@ -81,59 +81,6 @@ const validateTailoredResumeJson = (json) => {
   return { ok: true, missing: null };
 };
 
-// Sync resume directly to FlowCV (skip OpenAI)
-app.post("/api/sync-resume", async (req, res) => {
-  try {
-    const { currentResume, resumeFileName } = req.body;
-
-    if (!currentResume) {
-      return res
-        .status(400)
-        .json({ error: "Current resume is required" });
-    }
-
-    // Parse resume text to JSON
-    const tailoredResumeJson = parseTailoredResumeTextToJson(currentResume);
-
-    // Validate parsed JSON
-    const v = validateTailoredResumeJson(tailoredResumeJson);
-    if (!v.ok) {
-      return res.status(400).json({
-        error: "Failed to parse resume text",
-        details: `Missing or empty field: ${v.missing}`,
-        parsed: tailoredResumeJson,
-      });
-    }
-
-    // Use provided filename or generate one
-    if (resumeFileName) {
-      tailoredResumeJson.resumeFileName = resumeFileName;
-    }
-
-    // Sync to FlowCV and get PDF
-    const flowCvSync = await syncFlowCvPersonalDetailsAfterTailor(tailoredResumeJson);
-
-    if (!flowCvSync.ok) {
-      return res.status(500).json({
-        error: "Failed to sync resume to FlowCV",
-        details: flowCvSync.error,
-      });
-    }
-
-    res.json({
-      tailoredResume: currentResume,
-      tailoredResumeJson,
-      flowCvSync,
-    });
-  } catch (error) {
-    console.error("Error syncing resume to FlowCV:", error.message || error);
-    res.status(500).json({
-      error: "Failed to sync resume to FlowCV",
-      details: error.message || String(error),
-    });
-  }
-});
-
 // Generate tailored resume using OpenAI API
 app.post("/api/tailor-resume", async (req, res) => {
   try {
