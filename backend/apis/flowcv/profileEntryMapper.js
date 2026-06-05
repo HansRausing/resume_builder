@@ -47,7 +47,7 @@ function replaceBoldMarkers(s) {
 export function descriptionToFlowCvHtml(text) {
   const raw = String(text || '').trim();
   if (!raw) return '<p></p>';
-  let s = escapeFlowCvPlainText(stripBoldMarkers(raw));
+  let s = stripBoldMarkers(raw);
   return `<p>${s.replace(/\n/g, '<br>')}</p>`;
 }
 
