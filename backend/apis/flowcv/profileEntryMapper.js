@@ -34,6 +34,15 @@ function stripBoldMarkers(text) {
   return String(text || '').replace(/\*\*/g, '');
 }
 
+function replaceBoldMarkers(s) {
+  const text = String(s || "");
+  if (text === "**") return "<strong>**</strong>";
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/^\*\*(.+)$/, "<strong>$1</strong>")
+    .replace(/^(.+?)\*\*$/, "<strong>$1</strong>");
+}
+
 /** One paragraph: escape, **bold**, newlines → `<br>`, wrap in `<p>`. */
 export function descriptionToFlowCvHtml(text) {
   const raw = String(text || '').trim();
@@ -49,12 +58,8 @@ export function summaryToFlowCvHtml(summary) {
   const raw = String(summary || '').trim();
   if (!raw) return '<p></p>';
 
-  let s = escapeFlowCvPlainText(stripBoldMarkers(raw));
-
-  const blocks = s.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
-  if (blocks.length === 0) return '<p></p>';
-
-  return blocks.map((block) => `<p>${block.replace(/\n/g, '<br>')}</p>`).join('');
+  let s = descriptionToFlowCvHtml(replaceBoldMarkers(raw));
+  return s.replaceAll("*", "");
 }
 
 /**
